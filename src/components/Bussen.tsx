@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { TimingPointSchema } from '../util/ov/schema';
 import BusIcon from '../assets/Bus_stop_symbol.svg';
 import { useEffect, useMemo, useState } from 'react';
+import { FETCH_INTERVAL, FILTER_MAX_TIME_ELAPSED } from '../util/ov/constants';
 
 type DataRaw = z.infer<typeof TimingPointSchema>;
 type BusPass = ReturnType<typeof mapBusPass>[number];
@@ -77,6 +78,8 @@ function Bus({ ExpectedDepartureTime }: BusPass) {
     };
   }, [timeLeft, ExpectedDepartureTime]);
 
+  if (timeLeft < FILTER_MAX_TIME_ELAPSED) return null;
+
   return (
     <div
       className={`${riskClassName} flex items-center text-4xl gap-2 text-nowrap`}
@@ -96,7 +99,9 @@ export function Bussen() {
   } = useQuery({
     queryKey: ['ovdata'],
     queryFn: getOVData,
-    refetchInterval: 2 * 60 * 1000, // 2 minuten
+    refetchInterval: FETCH_INTERVAL, // 2 minuten
+    refetchIntervalInBackground: true,
+    staleTime: FETCH_INTERVAL, // 2 minuten
     select: (data) => mapBusPass(data),
   });
 
