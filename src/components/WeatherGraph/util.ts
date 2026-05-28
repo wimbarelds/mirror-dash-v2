@@ -28,11 +28,7 @@ export const getYRange1Values = (values: number[]) => {
   const minRounded = Math.floor(minVal / 10) * 10;
   const maxRounded = Math.ceil(maxVal / 10) * 10;
   const range: RangePoint[] = [];
-  for (
-    let rangePoint = minRounded;
-    rangePoint <= maxRounded;
-    rangePoint += 10
-  ) {
+  for (let rangePoint = minRounded; rangePoint <= maxRounded; rangePoint += 10) {
     range.push({
       value: rangePoint,
       text: rangePoint.toString() + '°',
@@ -72,11 +68,7 @@ export const getXRangeValues = (values: number[]) => {
   const maxVal = Math.max(...values);
 
   const range: RangePoint[] = [];
-  for (
-    let rangePoint = minVal;
-    rangePoint <= maxVal;
-    rangePoint += 1000 * 60 * 60
-  ) {
+  for (let rangePoint = minVal; rangePoint <= maxVal; rangePoint += 1000 * 60 * 60) {
     const date = new Date(rangePoint);
     range.push({
       value: rangePoint,
@@ -93,39 +85,18 @@ export const getXRangeValues = (values: number[]) => {
 };
 
 export const temperatureToColor = (temperature: number): string => {
-  if (temperature < -10)
-    return temperatureInRangeToColor(0, colors.veryCold, colors.veryCold);
+  if (temperature < -10) return temperatureInRangeToColor(0, colors.veryCold, colors.veryCold);
   if (temperature <= 0)
-    return temperatureInRangeToColor(
-      temperature / -10,
-      colors.veryCold,
-      colors.cold,
-    );
+    return temperatureInRangeToColor(temperature / -10, colors.veryCold, colors.cold);
   if (temperature <= 15)
-    return temperatureInRangeToColor(
-      temperature / 15,
-      colors.cold,
-      colors.warm,
-    );
+    return temperatureInRangeToColor(temperature / 15, colors.cold, colors.warm);
   if (temperature <= 35)
-    return temperatureInRangeToColor(
-      (temperature - 15) / 20,
-      colors.warm,
-      colors.hot,
-    );
+    return temperatureInRangeToColor((temperature - 15) / 20, colors.warm, colors.hot);
   return temperatureInRangeToColor(0, colors.hot, colors.hot);
 };
 
-const temperatureInRangeToColor = (
-  pct: number,
-  color0: number[],
-  color1: number[],
-): string => {
-  const c0 = [
-    color0[0] * (1 - pct),
-    color0[1] * (1 - pct),
-    color0[2] * (1 - pct),
-  ];
+const temperatureInRangeToColor = (pct: number, color0: number[], color1: number[]): string => {
+  const c0 = [color0[0] * (1 - pct), color0[1] * (1 - pct), color0[2] * (1 - pct)];
   const c1 = [color1[0] * pct, color1[1] * pct, color1[2] * pct];
   const r = Math.round(c0[0] + c1[0])
     .toString(16)

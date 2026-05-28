@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+
 import { Point, PrecipitationPoint, Range, Scaler } from './types';
 
 const rangeCap = (y: number, yRange: Range, scaler: Scaler) => {
@@ -28,12 +29,8 @@ export function GraphPrecipitation({
     if (xRange && yRange) {
       for (let i = 0; i < data.length; i++) {
         const value: PrecipitationPoint = data[i];
-        const x: number = scaler.x(
-          (value.x - xRange.min) / (xRange.max - xRange.min),
-        );
-        const y: number = scaler.y(
-          (value.y - yRange.min) / (yRange.max - yRange.min),
-        );
+        const x: number = scaler.x((value.x - xRange.min) / (xRange.max - xRange.min));
+        const y: number = scaler.y((value.y - yRange.min) / (yRange.max - yRange.min));
         points.push({ x: x, y: y });
       }
     }
@@ -67,9 +64,7 @@ export function GraphPrecipitation({
       for (let i = 0; i < data.length; i++) {
         const value: PrecipitationPoint = data[i];
         const h: number = Math.round(value.h * 20);
-        const x: number = scaler.x(
-          (value.x - xRange.min) / (xRange.max - xRange.min),
-        );
+        const x: number = scaler.x((value.x - xRange.min) / (xRange.max - xRange.min));
         const yBottom: number =
           scaler.y((value.y - yRange.min) / (yRange.max - yRange.min)) - h / 2;
         const yTop: number = yBottom + h;
@@ -115,12 +110,7 @@ export function GraphPrecipitation({
 
   return (
     <g id="Precipitation">
-      <path
-        d={precipitationChance}
-        stroke="#369"
-        strokeWidth="2"
-        fill="transparent"
-      />
+      <path d={precipitationChance} stroke="#369" strokeWidth="2" fill="transparent" />
       <path d={precipitationIntensity} fill="rgba(51, 102, 153, 0.5)" />
     </g>
   );

@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
-import { getOVData } from '../util/ov/fetch-ov';
-import { z } from 'zod';
-import { TimingPointSchema } from '../util/ov/schema';
-import BusIcon from '../assets/Bus_stop_symbol.svg';
 import { useEffect, useMemo, useState } from 'react';
+import { z } from 'zod';
+
+import BusIcon from '../assets/Bus_stop_symbol.svg';
 import { FETCH_INTERVAL, FILTER_MAX_TIME_ELAPSED } from '../util/ov/constants';
+import { getOVData } from '../util/ov/fetch-ov';
+import { TimingPointSchema } from '../util/ov/schema';
 
 type DataRaw = z.infer<typeof TimingPointSchema>;
 type BusPass = ReturnType<typeof mapBusPass>[number];
@@ -51,9 +52,7 @@ function getRiskClass(timeLeft: number) {
 const getTimeLeft = (departure: Date) => departure.getTime() - Date.now();
 
 function Bus({ ExpectedDepartureTime }: BusPass) {
-  const [timeLeft, setTimeleft] = useState(() =>
-    getTimeLeft(ExpectedDepartureTime),
-  );
+  const [timeLeft, setTimeleft] = useState(() => getTimeLeft(ExpectedDepartureTime));
 
   useEffect(() => {
     let delay = 60 * 60 * 1000; // 1 hour
@@ -63,10 +62,7 @@ function Bus({ ExpectedDepartureTime }: BusPass) {
       delay = (timeLeft % 60000) + 1; // <100m = next minute
     else delay = (timeLeft % 3600000) + 1; // >100m = next hour
 
-    const timeout = setTimeout(
-      () => setTimeleft(() => getTimeLeft(ExpectedDepartureTime)),
-      delay,
-    );
+    const timeout = setTimeout(() => setTimeleft(() => getTimeLeft(ExpectedDepartureTime)), delay);
     return () => clearTimeout(timeout);
   }, [ExpectedDepartureTime, timeLeft]);
 
@@ -81,9 +77,7 @@ function Bus({ ExpectedDepartureTime }: BusPass) {
   if (timeLeft < FILTER_MAX_TIME_ELAPSED) return null;
 
   return (
-    <div
-      className={`${riskClassName} flex items-center text-4xl gap-2 text-nowrap`}
-    >
+    <div className={`${riskClassName} flex items-center gap-2 text-4xl text-nowrap`}>
       <img src={BusIcon} alt="" className="w-[60px]" />
       <div className="w-[10ch] text-center">{timeStr}</div>
       <div>{remainingStr}</div>

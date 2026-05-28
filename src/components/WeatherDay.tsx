@@ -44,15 +44,15 @@ export function WeatherDay({ dayOffset = 0 }: Props) {
     temperature_2m_min,
     temperature_2m_max,
     weather_code,
-  } = keys.reduce(
-    (obj, key) => ({ ...obj, [key]: data.daily[key][dayIndex] }),
-    {},
-  ) as Record<Key, number>;
+  } = keys.reduce((obj, key) => ({ ...obj, [key]: data.daily[key][dayIndex] }), {}) as Record<
+    Key,
+    number
+  >;
   const { description, image } = getWeatherCodeInfo(weather_code);
 
   return (
-    <section className="px-4 flex flex-col items-center w-[150px]">
-      <h3 className="text-2xl text-center">{getDayText(dayOffset)}</h3>
+    <section className="flex w-[150px] flex-col items-center px-4">
+      <h3 className="text-center text-2xl">{getDayText(dayOffset)}</h3>
       <div className="flex items-center">
         <img src={image} alt="" className="w-[50px]" />
         <p className="flex-1">{description}</p>

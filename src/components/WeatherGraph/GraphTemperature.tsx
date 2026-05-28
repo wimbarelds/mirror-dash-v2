@@ -54,16 +54,14 @@ export function GraphTemperature({
     },
   }));
 
-  const graphTexts = data
-    .slice(1, data.length - 1)
-    .map((point: Point, i: number) => ({
-      index: i,
-      pos: {
-        x: scaler.x((point.x - xRange.min) / (xRange.max - xRange.min)),
-        y: scaler.y((point.y - yRange.min) / (yRange.max - yRange.min)) - 10,
-      },
-      text: Math.round(point.y) + '°',
-    }));
+  const graphTexts = data.slice(1, data.length - 1).map((point: Point, i: number) => ({
+    index: i,
+    pos: {
+      x: scaler.x((point.x - xRange.min) / (xRange.max - xRange.min)),
+      y: scaler.y((point.y - yRange.min) / (yRange.max - yRange.min)) - 10,
+    },
+    text: Math.round(point.y) + '°',
+  }));
 
   return (
     <g id="temperature">
@@ -72,29 +70,17 @@ export function GraphTemperature({
           {gradientColors.map((color, index) => (
             <stop
               key={index}
-              offset={
-                Math.floor((index / (gradientColors.length - 1)) * 100) + '%'
-              }
+              offset={Math.floor((index / (gradientColors.length - 1)) * 100) + '%'}
               stopColor={color}
             />
           ))}
         </linearGradient>
       </defs>
       <g id="FillSegment">
-        <path
-          d={fillPath}
-          stroke="transparent"
-          fill="url(#linear)"
-          opacity="0.8"
-        />
+        <path d={fillPath} stroke="transparent" fill="url(#linear)" opacity="0.8" />
       </g>
       <g id="LineSegment">
-        <path
-          d={linePath}
-          stroke="url(#linear)"
-          strokeWidth="1"
-          fill="transparent"
-        />
+        <path d={linePath} stroke="url(#linear)" strokeWidth="1" fill="transparent" />
       </g>
       <g id="GraphPoints">
         {graphPoints.map((graphPoint) => (
@@ -117,7 +103,7 @@ export function GraphTemperature({
             fontSize="12"
             fill="#FFF"
             textAnchor="middle"
-            dominantBaseline="bottom"
+            dominantBaseline="text-after-edge"
           >
             {graphText.text}
           </text>

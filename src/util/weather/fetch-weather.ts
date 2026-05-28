@@ -3,12 +3,7 @@ import { fetchWeatherApi } from 'openmeteo';
 const params = {
   latitude: 53.247072,
   longitude: 6.588939,
-  current: [
-    'temperature_2m',
-    'apparent_temperature',
-    'precipitation',
-    'weather_code',
-  ],
+  current: ['temperature_2m', 'apparent_temperature', 'precipitation', 'weather_code'],
   hourly: [
     'temperature_2m',
     'apparent_temperature',
@@ -40,17 +35,13 @@ function dates(...args: [bigint, bigint, number]) {
 }
 
 type WeatherApiResponse = Awaited<ReturnType<typeof fetchWeatherApi>>[number];
-type VariableWithValuesFn = Exclude<
-  ReturnType<WeatherApiResponse['current']>,
-  null
->['variables'];
+type VariableWithValuesFn = Exclude<ReturnType<WeatherApiResponse['current']>, null>['variables'];
 type VariableWithValues = ReturnType<VariableWithValuesFn>;
 
 type ParamValueCallback = (variables: VariableWithValues) => unknown;
-type ParamValueObject<
-  TKeys extends readonly string[],
-  TCallback extends ParamValueCallback,
-> = { [key in TKeys[number]]: ReturnType<TCallback> };
+type ParamValueObject<TKeys extends readonly string[], TCallback extends ParamValueCallback> = {
+  [key in TKeys[number]]: ReturnType<TCallback>;
+};
 
 function getParamValueObject<
   TParams extends readonly string[],
@@ -78,18 +69,14 @@ function getWeatherData(result: WeatherApiResponse) {
   return {
     current: {
       time: new Date((Number(current.time()) + utcOffsetSeconds) * 1000),
-      ...getParamValueObject(
-        current.variables.bind(current),
-        params.current,
-        (obj) => obj?.value(),
+      ...getParamValueObject(current.variables.bind(current), params.current, (obj) =>
+        obj?.value(),
       ),
     },
     hourly: {
       time: dates(hourly.time(), hourly.timeEnd(), hourly.interval()),
-      ...getParamValueObject(
-        hourly.variables.bind(hourly),
-        params.hourly,
-        (obj) => Array.from(obj?.valuesArray() ?? []),
+      ...getParamValueObject(hourly.variables.bind(hourly), params.hourly, (obj) =>
+        Array.from(obj?.valuesArray() ?? []),
       ),
     },
     daily: {

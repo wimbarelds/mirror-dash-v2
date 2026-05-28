@@ -1,14 +1,10 @@
 import { useMemo } from 'react';
-import { Point, Range, DataPoint, PrecipitationPoint } from './types';
-import {
-  getScaler,
-  getXRangeValues,
-  getYRange1Values,
-  getYRange2Values,
-} from './util';
+
 import { margins } from './constants';
-import { GraphTemperature } from './GraphTemperature';
 import { GraphPrecipitation } from './GraphPrecipitation';
+import { GraphTemperature } from './GraphTemperature';
+import { Point, Range, DataPoint, PrecipitationPoint } from './types';
+import { getScaler, getXRangeValues, getYRange1Values, getYRange2Values } from './util';
 
 interface Props {
   datapoints: DataPoint[];
@@ -32,8 +28,7 @@ export function WeatherGraph({ datapoints, size }: Props) {
     const newPrecipitation: PrecipitationPoint[] = [];
     hours.forEach((hour) => {
       if (hour && hour.temperature) temperatureValues.push(hour.temperature);
-      if (hour && hour.precipProbability)
-        precipitationProbability.push(hour.precipProbability);
+      if (hour && hour.precipProbability) precipitationProbability.push(hour.precipProbability);
       if (hour && hour.time) times.push(hour.time);
       if (hour && hour.temperature && hour.time)
         newTemperature.push({ x: hour.time, y: hour.temperature });
@@ -58,9 +53,7 @@ export function WeatherGraph({ datapoints, size }: Props) {
     () =>
       xRange.range.map((rangePoint) => ({
         ...rangePoint,
-        pos: scaler.x(
-          (rangePoint.value - xRange.min) / (xRange.max - xRange.min),
-        ),
+        pos: scaler.x((rangePoint.value - xRange.min) / (xRange.max - xRange.min)),
       })),
     [scaler, xRange.max, xRange.min, xRange.range],
   );
@@ -69,9 +62,7 @@ export function WeatherGraph({ datapoints, size }: Props) {
     () =>
       yRange1.range.map((rangePoint) => ({
         ...rangePoint,
-        pos: scaler.y(
-          (rangePoint.value - yRange1.min) / (yRange1.max - yRange1.min),
-        ),
+        pos: scaler.y((rangePoint.value - yRange1.min) / (yRange1.max - yRange1.min)),
       })),
     [scaler, yRange1.max, yRange1.min, yRange1.range],
   );
@@ -80,9 +71,7 @@ export function WeatherGraph({ datapoints, size }: Props) {
     () =>
       yRange2.range.map((rangePoint) => ({
         ...rangePoint,
-        pos: scaler.y(
-          (rangePoint.value - yRange2.min) / (yRange2.max - yRange2.min),
-        ),
+        pos: scaler.y((rangePoint.value - yRange2.min) / (yRange2.max - yRange2.min)),
       })),
     [scaler, yRange2.max, yRange2.min, yRange2.range],
   );
@@ -136,12 +125,7 @@ export function WeatherGraph({ datapoints, size }: Props) {
           ))}
         </g>
         {temperature.length && (
-          <GraphTemperature
-            xRange={xRange}
-            yRange={yRange1}
-            data={temperature}
-            scaler={scaler}
-          />
+          <GraphTemperature xRange={xRange} yRange={yRange1} data={temperature} scaler={scaler} />
         )}
         {precipitation.length && (
           <GraphPrecipitation

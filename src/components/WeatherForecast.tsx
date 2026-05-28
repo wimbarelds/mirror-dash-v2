@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
+
 import { useWeatherData } from '../util/weather/use-weather-data';
-import { WeatherGraph } from './WeatherGraph/WeatherGraph';
 import { Point } from './WeatherGraph/types';
+import { WeatherGraph } from './WeatherGraph/WeatherGraph';
 
 function isNext24Hours(date: Date, now: number) {
   const from = now - 1000 * 60 * 60 * 2;
@@ -25,9 +26,7 @@ export function WeatherForecast() {
     if (!container) return [];
     if (!data) return [];
 
-    const todayHours = data.hourly.time.filter((value) =>
-      isNext24Hours(value, now),
-    );
+    const todayHours = data.hourly.time.filter((value) => isNext24Hours(value, now));
     const indexes = todayHours.map((item) => data.hourly.time.indexOf(item));
     return indexes.map((i) => {
       return {
@@ -45,12 +44,12 @@ export function WeatherForecast() {
     const observer = new ResizeObserver(() => {
       const newSize = {
         x: container.clientWidth,
-        y: Math.max(240, Math.min(screen.availHeight - 600, 100)),
+        y: Math.max(100, Math.min(screen.availHeight - 600, 240)),
       };
       if (!size || size.x !== newSize.x || size.y !== newSize.y) {
         setSize({
           x: container.clientWidth,
-          y: Math.max(240, Math.min(screen.availHeight - 600, 100)),
+          y: Math.max(100, Math.min(screen.availHeight - 600, 240)),
         });
       }
     });
@@ -60,8 +59,6 @@ export function WeatherForecast() {
   }, [size, container]);
 
   return (
-    <div ref={setContainer}>
-      {size && <WeatherGraph datapoints={dataPoints} size={size} />}
-    </div>
+    <div ref={setContainer}>{size && <WeatherGraph datapoints={dataPoints} size={size} />}</div>
   );
 }
