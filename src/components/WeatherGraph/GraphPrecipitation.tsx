@@ -1,6 +1,7 @@
 import { HourPoint, isSnow } from '../../util/weather/selectors';
-import { Point, Scale } from './types';
-import { round, smoothPath, smoothSegments } from './util';
+import { PLOT } from './constants';
+import { Scale } from './types';
+import { sampleCurves, smoothCurves } from './util';
 
 interface Props {
   points: HourPoint[];
@@ -9,82 +10,51 @@ interface Props {
   chanceY: Scale;
 }
 
-/** How thick the ribbon gets per mm in an hour, and its limit, in drawing units */
-const THICKNESS_PER_MM = 28;
-const MAX_THICKNESS = 70;
+const RAIN_COLOR = '#8fc3ff';
+const SNOW_COLOR = '#ffffff';
 
-type Kind = 'rain' | 'snow';
+/** Distance between the dots, in drawing units */
+const SPACING = 14;
 
-/** Rain is solid blue. Snow is white with a dotted line, so the two can't be mistaken for each other. */
-const STYLES: Record<Kind, { color: string; fillOpacity: number; dash?: string }> = {
-  rain: { color: '#8fc3ff', fillOpacity: 0.38 },
-  snow: { color: '#ffffff', fillOpacity: 0.3, dash: '1 9' },
-};
+/** Dot radius grows with the square root of the amount, so light rain stays visible, up to a limit */
+const MIN_RADIUS = 1.8;
+const RADIUS_PER_ROOT_MM = 4.5;
+const MAX_RADIUS = 9;
 
 /** Hours with a real chance of precipitation. Tiny probabilities with nothing falling are left out. */
 const isRainy = (point: HourPoint) => point.precipProbability >= 10 || point.precipitation >= 0.1;
 
-const getKind = (point: HourPoint): Kind => (isSnow(point) ? 'snow' : 'rain');
-
-/** Stretches of consecutive hours of the same kind of precipitation, as indexes into the points */
-function getRuns(points: HourPoint[]) {
-  const runs: { kind: Kind; first: number; last: number }[] = [];
-
-  let i = 0;
-  while (i < points.length) {
-    if (!isRainy(points[i])) {
-      i++;
-      continue;
-    }
-    const kind = getKind(points[i]);
-    const first = i;
-    while (i < points.length && isRainy(points[i]) && getKind(points[i]) === kind) i++;
-    runs.push({ kind, first, last: i - 1 });
-  }
-
-  return runs;
-}
+/** The amount (mm) that decides the dot size; 0 where nothing is expected, so no dots are drawn */
+const getAmount = (point: HourPoint) => (isRainy(point) ? Math.max(point.precipitation, 0.05) : 0);
 
 /**
- * Precipitation in one shape: the line follows the chance (read from the right-hand axis), and the
- * ribbon around it is as thick as the amount expected in that hour. Each run tapers off into the
- * dry hour on both sides.
+ * Precipitation as a dotted line. The height follows the chance (read from the right-hand axis),
+ * the size of the dots is the amount expected, and the colour tells rain (blue) from snow (white).
+ * Dots only appear where something is expected, and shrink away at the edges of a spell.
  */
 export function GraphPrecipitation({ points, x, chanceY }: Props) {
+  const curves = smoothCurves(
+    points.map((point) => ({ x: x(point.time), y: chanceY(point.precipProbability) })),
+    { top: PLOT.top, bottom: PLOT.bottom },
+  );
+  const amounts = points.map(getAmount);
+
   return (
     <g>
-      {getRuns(points).map(({ kind, first, last }) => {
-        const line: Point[] = [];
-        const upper: Point[] = [];
-        const lower: Point[] = [];
+      {sampleCurves(curves, SPACING).map(({ x: cx, y: cy, segment, t }, index) => {
+        const amount = amounts[segment] + (amounts[segment + 1] - amounts[segment]) * t;
+        if (amount <= 0) return null;
 
-        for (let i = Math.max(0, first - 1); i <= Math.min(points.length - 1, last + 1); i++) {
-          const point = points[i];
-          const inside = i >= first && i <= last;
-          const y = chanceY(inside ? point.precipProbability : 0);
-          const half = inside
-            ? Math.min(point.precipitation * THICKNESS_PER_MM, MAX_THICKNESS) / 2
-            : 0;
-          line.push({ x: x(point.time), y });
-          upper.push({ x: x(point.time), y: y - half });
-          lower.unshift({ x: x(point.time), y: y + half });
-        }
-
-        const { color, fillOpacity, dash } = STYLES[kind];
-        const ribbon = `${smoothPath(upper)} L${round(lower[0].x)} ${round(lower[0].y)}${smoothSegments(lower)}Z`;
-
+        const nearest = points[t < 0.5 ? segment : segment + 1];
         return (
-          <g key={points[first].time}>
-            <path d={ribbon} fill={color} fillOpacity={fillOpacity} />
-            <path
-              d={smoothPath(line)}
-              fill="none"
-              stroke={color}
-              strokeWidth={dash ? 4 : 3}
-              strokeDasharray={dash}
-              strokeLinecap="round"
-            />
-          </g>
+          <circle
+            key={index}
+            cx={cx}
+            cy={cy}
+            r={Math.min(MAX_RADIUS, MIN_RADIUS + RADIUS_PER_ROOT_MM * Math.sqrt(amount))}
+            fill={isSnow(nearest) ? SNOW_COLOR : RAIN_COLOR}
+            fillOpacity={Math.min(1, amount / 0.15)}
+          />
         );
       })}
     </g>

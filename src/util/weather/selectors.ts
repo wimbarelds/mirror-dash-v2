@@ -76,10 +76,11 @@ export function getDaySummary(data: WeatherData, at: number): DaySummary | null 
  */
 export function isWetHour(point: HourPoint) {
   if (point.precipitation >= 0.5) return true;
-  return (
-    point.precipitation >= 0.1 &&
-    (point.precipProbability >= 40 || PRECIPITATION_CODES.has(point.weatherCode))
-  );
+
+  const likely = point.precipProbability >= 40;
+  const some = point.precipitation >= 0.1;
+  const confirmed = PRECIPITATION_CODES.has(point.weatherCode);
+  return (some && likely) || (confirmed && (some || likely));
 }
 
 /** Chance of rain (%) from which "dry" would be misleading even when no rain is expected */
@@ -89,6 +90,18 @@ export const isSnow = (point: HourPoint) => SNOW_CODES.has(point.weatherCode);
 
 function formatHour(time: number) {
   return `${String(new Date(time).getHours()).padStart(2, '0')}:00`;
+}
+
+const kindOf = (point: HourPoint) => (isSnow(point) ? 'sneeuw' : 'regen');
+
+/**
+ * The hour with the highest chance of rain, if it's high enough to matter. The forecast can give a
+ * high chance with an expected amount of 0 mm, which "dry" would be misleading about.
+ */
+function findLikelyChance(points: HourPoint[]) {
+  const likely = points.filter((point) => point.precipProbability >= LIKELY_CHANCE);
+  if (likely.length === 0) return undefined;
+  return likely.reduce((a, b) => (b.precipProbability > a.precipProbability ? b : a));
 }
 
 /** One-line summary of when it is going to rain or stay dry, or null if the data doesn't cover now */
@@ -104,20 +117,24 @@ export function describeRain(points: HourPoint[], now: number): string | null {
       const next = upcoming[i + 1];
       return !isWetHour(point) && !(next && isWetHour(next));
     });
-    return dry
-      ? `${kind} tot ${formatHour(dry.time)}, daarna droog`
-      : `${kind} de komende uren, ook later nog`;
+    if (!dry) return `${kind} de komende uren, ook later nog`;
+
+    const after = upcoming.slice(upcoming.indexOf(dry));
+    const again = after.find(isWetHour);
+    if (again)
+      return `${kind} tot ${formatHour(dry.time)}, vanaf ${formatHour(again.time)} weer ${kindOf(again)}`;
+    const chance = findLikelyChance(after);
+    if (chance) {
+      return `${kind} tot ${formatHour(dry.time)}, rond ${formatHour(chance.time)} weer kans op ${kindOf(chance)}`;
+    }
+    return `${kind} tot ${formatHour(dry.time)}, daarna droog`;
   }
 
   const wet = upcoming.find(isWetHour);
-  if (wet) return `Droog tot ${formatHour(wet.time)}, daarna ${isSnow(wet) ? 'sneeuw' : 'regen'}`;
+  if (wet) return `Droog tot ${formatHour(wet.time)}, daarna ${kindOf(wet)}`;
 
-  // No rain expected, but the forecast can still give a high chance with an expected amount of 0 mm
-  const likely = upcoming.filter((point) => point.precipProbability >= LIKELY_CHANCE);
-  if (likely.length > 0) {
-    const peak = likely.reduce((a, b) => (b.precipProbability > a.precipProbability ? b : a));
-    return `Droog, maar kans op ${isSnow(peak) ? 'sneeuw' : 'regen'} rond ${formatHour(peak.time)}`;
-  }
+  const chance = findLikelyChance(upcoming);
+  if (chance) return `Droog, maar kans op ${kindOf(chance)} rond ${formatHour(chance.time)}`;
   return `Droog de komende ${upcoming.length} uur`;
 }
 

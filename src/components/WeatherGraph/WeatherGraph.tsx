@@ -85,9 +85,9 @@ export function WeatherGraph({ points, now }: Props) {
       ))}
 
       <g clipPath={`url(#${CLIP_ID})`}>
-        <GraphIce points={points} x={x} />
         <GraphPrecipitation points={points} x={x} chanceY={chanceY} />
       </g>
+      <GraphIce points={points} x={x} />
       <GraphTemperature points={points} now={now} x={x} y={y} />
 
       {points.map(
