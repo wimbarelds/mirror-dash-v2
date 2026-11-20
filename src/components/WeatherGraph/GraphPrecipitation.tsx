@@ -157,8 +157,34 @@ const DROP_CONTROL: [number, number][] = [
   [-0.3, -0.75],
 ];
 
-/** A snowflake: three arms crossing at 60 degrees, each with a small chevron near the tip */
-const FLAKE_ARM: [number, number][][] = [
+type Point2 = [number, number];
+/** A shape is a set of lines in a space where it has a radius of about 1; closed ones are outlines */
+type Shape = { points: Point2[]; closed?: boolean }[];
+
+const turn = ([x, y]: Point2, degrees: number): Point2 => {
+  const angle = (degrees * Math.PI) / 180;
+  return [x * Math.cos(angle) - y * Math.sin(angle), x * Math.sin(angle) + y * Math.cos(angle)];
+};
+
+/** Repeats what is drawn on one arm at 0, 60 and 120 degrees, so it reads as a six-pointed crystal */
+const sixFold = (arm: Point2[][]): Shape =>
+  [0, 60, 120].flatMap((degrees) =>
+    arm.map((line) => ({ points: line.map((point) => turn(point, degrees)) })),
+  );
+
+/**
+ * Snowflakes get a shape that suits their size, like the forms real crystals take: the smallest are
+ * plain specks (not in this list), then a simple asterisk, a star with small chevrons at the tips,
+ * and the largest are detailed crystals: a branched dendrite or a hexagonal plate.
+ */
+const ASTERISK: Shape = sixFold([
+  [
+    [0, -1],
+    [0, 1],
+  ],
+]);
+
+const STAR: Shape = sixFold([
   [
     [0, -1],
     [0, 1],
@@ -173,7 +199,56 @@ const FLAKE_ARM: [number, number][][] = [
     [0, 0.92],
     [0.3, 0.62],
   ],
+]);
+
+/** A branch off the arm at distance `d` from the centre, spreading outwards by `b` */
+const branch = (d: number, b: number): Point2[][] => [
+  [
+    [-b, -d - b * 1.1],
+    [0, -d],
+    [b, -d - b * 1.1],
+  ],
+  [
+    [-b, d + b * 1.1],
+    [0, d],
+    [b, d + b * 1.1],
+  ],
 ];
+
+const DENDRITE: Shape = sixFold([
+  [
+    [0, -1],
+    [0, 1],
+  ],
+  ...branch(0.42, 0.22),
+  ...branch(0.74, 0.18),
+]);
+
+const PLATE: Shape = [
+  {
+    points: [0, 1, 2, 3, 4, 5].map((corner) => turn([0, -0.95], corner * 60)),
+    closed: true,
+  },
+  ...sixFold([
+    [
+      [0, -0.5],
+      [0, 0.5],
+    ],
+  ]),
+];
+
+/** Below these drawn radii a flake is a speck, an asterisk, a star; from the last one up it is a crystal */
+const SPECK_BELOW = 2.6;
+const ASTERISK_BELOW = 3.6;
+const STAR_BELOW = 4.8;
+/** Raindrops that small are too small to show their shape, and become dots */
+const DROP_SPECK_BELOW = 2;
+
+function flakeShape(radius: number, random: () => number): Shape {
+  if (radius < ASTERISK_BELOW) return ASTERISK;
+  if (radius < STAR_BELOW) return STAR;
+  return random() < 0.5 ? DENDRITE : PLATE;
+}
 
 /** Moves, scales and turns a point of a particle into its place in the graph */
 function placer(x: number, y: number, scale: number, degrees: number) {
@@ -192,21 +267,26 @@ function dropPath(x: number, y: number, radius: number, degrees: number) {
   return `M${p(tip)}C${p(c1)} ${p(c2)} ${p(right)}A${r} ${r} 0 0 1 ${p(left)}C${p(c3)} ${p(c4)} ${p(tip)}Z`;
 }
 
-/** Path data for a snowflake of the given radius, turned by `degrees` */
-function flakePath(x: number, y: number, radius: number, degrees: number) {
-  return [0, 60, 120]
-    .flatMap((arm) => {
-      const p = placer(x, y, radius, degrees + arm);
-      return FLAKE_ARM.map((line) =>
-        line.map((point, i) => `${i === 0 ? 'M' : 'L'}${p(point)}`).join(''),
-      );
-    })
+/** Path data for a snowflake of the given shape and radius, turned by `degrees` */
+function flakePath(x: number, y: number, radius: number, degrees: number, shape: Shape) {
+  const p = placer(x, y, radius, degrees);
+  return shape
+    .map(
+      ({ points, closed }) =>
+        points.map((point, i) => `${i === 0 ? 'M' : 'L'}${p(point)}`).join('') +
+        (closed ? 'Z' : ''),
+    )
     .join('');
 }
+
+/** A filled circle as path data */
+const speckPath = (x: number, y: number, r: number) =>
+  `M${(x - r).toFixed(1)} ${y.toFixed(1)}a${r.toFixed(2)} ${r.toFixed(2)} 0 1 0 ${(2 * r).toFixed(2)} 0a${r.toFixed(2)} ${r.toFixed(2)} 0 1 0 ${(-2 * r).toFixed(2)} 0Z`;
 
 interface Layout {
   drops: string;
   flakes: string;
+  specks: string;
   background: string;
 }
 
@@ -236,6 +316,7 @@ function layOut(points: HourPoint[], x: Scale, chanceY: Scale): Layout {
   const random = createRandom(5);
   let drops = '';
   let flakes = '';
+  let specks = '';
 
   // A grid of the particles placed so far, to find neighbours quickly
   const CELL = 18;
@@ -276,8 +357,14 @@ function layOut(points: HourPoint[], x: Scale, chanceY: Scale): Layout {
       grid.set(key, [...(grid.get(key) ?? []), index]);
 
       const drawn = radius * DRAW_SCALE;
-      if (isSnow(sample.nearest)) flakes += flakePath(px, py, drawn, random() * 60);
-      else drops += dropPath(px, py, drawn, 6 + random() * 14);
+      if (isSnow(sample.nearest)) {
+        if (drawn < SPECK_BELOW) specks += speckPath(px, py, drawn * 0.7);
+        else flakes += flakePath(px, py, drawn, random() * 60, flakeShape(drawn, random));
+      } else if (drawn < DROP_SPECK_BELOW) {
+        drops += speckPath(px, py, drawn * 0.75);
+      } else {
+        drops += dropPath(px, py, drawn, 6 + random() * 14);
+      }
     }
   }
 
@@ -287,7 +374,7 @@ function layOut(points: HourPoint[], x: Scale, chanceY: Scale): Layout {
   const upper = samples.map((s) => edge(s, -1));
   const lower = samples.map((s) => edge(s, 1)).reverse();
 
-  return { drops, flakes, background: `M${upper.join('L')}L${lower.join('L')}Z` };
+  return { drops, flakes, specks, background: `M${upper.join('L')}L${lower.join('L')}Z` };
 }
 
 /** The layout only depends on the hourly values, so it is not redone when only the clock changes */
@@ -307,12 +394,13 @@ function getLayout(points: HourPoint[], x: Scale, chanceY: Scale) {
  * vary, and are limited by how wide the stroke is where they sit.
  */
 export function GraphPrecipitation({ points, x, chanceY }: Props) {
-  const { drops, flakes, background } = getLayout(points, x, chanceY);
+  const { drops, flakes, specks, background } = getLayout(points, x, chanceY);
 
   return (
     <g>
       <path d={background} fill={SNOW_COLOR} fillOpacity={BACKGROUND_OPACITY} />
       <path d={drops} fill={RAIN_COLOR} />
+      <path d={specks} fill={SNOW_COLOR} />
       <path
         d={flakes}
         fill="none"
