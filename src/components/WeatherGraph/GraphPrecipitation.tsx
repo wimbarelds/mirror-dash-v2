@@ -35,6 +35,12 @@ const EDGE_MARGIN = 1.5;
 /** How much room particles keep around each other, as a factor on their radii added together */
 const SPACING = 1.06;
 
+/**
+ * Particles are drawn at this share of the size they are given room for. The room stays the same, so
+ * the number and places of the particles don't change; they just sit less crowded.
+ */
+const DRAW_SCALE = 0.75;
+
 /** Hours with precipitation, or a chance big enough to be worth drawing */
 const isRainy = (point: HourPoint) => point.precipProbability >= 25 || point.precipitation >= 0.1;
 
@@ -269,8 +275,9 @@ function layOut(points: HourPoint[], x: Scale, chanceY: Scale): Layout {
       const key = cellKey(Math.floor(px / CELL), Math.floor(py / CELL));
       grid.set(key, [...(grid.get(key) ?? []), index]);
 
-      if (isSnow(sample.nearest)) flakes += flakePath(px, py, radius, random() * 60);
-      else drops += dropPath(px, py, radius, 6 + random() * 14);
+      const drawn = radius * DRAW_SCALE;
+      if (isSnow(sample.nearest)) flakes += flakePath(px, py, drawn, random() * 60);
+      else drops += dropPath(px, py, drawn, 6 + random() * 14);
     }
   }
 
@@ -310,7 +317,7 @@ export function GraphPrecipitation({ points, x, chanceY }: Props) {
         d={flakes}
         fill="none"
         stroke={SNOW_COLOR}
-        strokeWidth="1.4"
+        strokeWidth="1.2"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
