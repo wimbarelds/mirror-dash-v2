@@ -1,5 +1,6 @@
 import { Bussen } from './components/Bussen';
 import { CurrentDateTime } from './components/CurrentDateTime';
+import { WeatherCurrent } from './components/WeatherCurrent';
 import { WeatherDay } from './components/WeatherDay';
 import { WeatherForecast } from './components/WeatherForecast';
 
@@ -15,11 +16,14 @@ function App() {
         <Bussen />
       </div>
       <div className="col-span-2 row-start-3 flex items-end justify-between gap-16">
-        <div className="flex gap-4">
-          <WeatherDay />
-          <WeatherDay dayOffset={1} />
+        <div className="w-[35rem]">
+          <WeatherCurrent />
+          <div className="mt-[1.875rem] flex gap-[3.75rem]">
+            <WeatherDay />
+            <WeatherDay dayOffset={1} />
+          </div>
         </div>
-        <div className="w-[71.875rem] text-xs">
+        <div className="w-[71.875rem]">
           <WeatherForecast />
         </div>
       </div>

@@ -1,114 +1,99 @@
-import { Point, Range, Scaler } from './types';
-import { pointToScaled, temperatureToColor } from './util';
+import { HourPoint } from '../../util/weather/selectors';
+import { PLOT } from './constants';
+import { Scale } from './types';
+import { smoothPath, temperatureToColor } from './util';
 
-export function GraphTemperature({
-  xRange,
-  yRange,
-  data,
-  scaler,
-}: {
-  xRange: Range;
-  yRange: Range;
-  data: Point[];
-  scaler: Scaler;
-}) {
-  const gradientColors: string[] = data.map((point: Point) => {
-    const color = temperatureToColor(point.y);
-    return color;
-  });
+interface Props {
+  points: HourPoint[];
+  now: number;
+  x: Scale;
+  y: Scale;
+}
 
-  const linePath =
-    data.length > 0
-      ? `M ${pointToScaled(data[0], xRange, yRange, scaler)}${data
-          .slice(1)
-          .map((point) => ` L ${pointToScaled(point, xRange, yRange, scaler)}`)
-          .join('')}`
-      : '';
+const GRADIENT_ID = 'temperature-gradient';
 
-  const fillPath =
-    data.length > 0
-      ? `${linePath} L ${pointToScaled(
-          {
-            x: data[data.length - 1].x,
-            y: yRange.min,
-          },
-          xRange,
-          yRange,
-          scaler,
-        )} L ${pointToScaled(
-          {
-            x: data[0].x,
-            y: yRange.min,
-          },
-          xRange,
-          yRange,
-          scaler,
-        )} L ${pointToScaled(data[0], xRange, yRange, scaler)}`
-      : '';
+/** The temperature at a moment, interpolated between the two surrounding hours */
+function temperatureAt(points: HourPoint[], now: number) {
+  const index = points.findIndex((point, i) => point.time <= now && now < points[i + 1]?.time);
+  if (index === -1) return null;
+  const [a, b] = [points[index], points[index + 1]];
+  const amount = (now - a.time) / (b.time - a.time);
+  return a.temperature + (b.temperature - a.temperature) * amount;
+}
 
-  const graphPoints = data.map((point: Point, i: number) => ({
-    index: i,
-    pos: {
-      x: scaler.x((point.x - xRange.min) / (xRange.max - xRange.min)),
-      y: scaler.y((point.y - yRange.min) / (yRange.max - yRange.min)),
-    },
-  }));
-
-  const graphTexts = data.slice(1, data.length - 1).map((point: Point, i: number) => ({
-    index: i,
-    pos: {
-      x: scaler.x((point.x - xRange.min) / (xRange.max - xRange.min)),
-      y: scaler.y((point.y - yRange.min) / (yRange.max - yRange.min)) - 10,
-    },
-    text: Math.round(point.y) + '°',
-  }));
+export function GraphTemperature({ points, now, x, y }: Props) {
+  const temperatures = points.map((point) => point.temperature);
+  const highest = temperatures.indexOf(Math.max(...temperatures));
+  const lowest = temperatures.indexOf(Math.min(...temperatures));
+  const current = temperatureAt(points, now);
 
   return (
-    <g id="temperature">
+    <g>
       <defs>
-        <linearGradient id="linear" x1="0%" y1="0%" x2="100%" y2="0%">
-          {gradientColors.map((color, index) => (
+        {/* The line changes colour along with the temperature */}
+        <linearGradient
+          id={GRADIENT_ID}
+          gradientUnits="userSpaceOnUse"
+          x1={PLOT.left}
+          x2={PLOT.right}
+          y1="0"
+          y2="0"
+        >
+          {points.map((point) => (
             <stop
-              key={index}
-              offset={Math.floor((index / (gradientColors.length - 1)) * 100) + '%'}
-              stopColor={color}
+              key={point.time}
+              offset={(x(point.time) - PLOT.left) / (PLOT.right - PLOT.left)}
+              stopColor={temperatureToColor(point.temperature)}
             />
           ))}
         </linearGradient>
       </defs>
-      <g id="FillSegment">
-        <path d={fillPath} stroke="transparent" fill="url(#linear)" opacity="0.8" />
-      </g>
-      <g id="LineSegment">
-        <path d={linePath} stroke="url(#linear)" strokeWidth="1" fill="transparent" />
-      </g>
-      <g id="GraphPoints">
-        {graphPoints.map((graphPoint) => (
-          <circle
-            key={graphPoint.index}
-            cx={graphPoint.pos.x}
-            cy={graphPoint.pos.y}
-            r="3"
-            fill="#FFF"
-            stroke="rgba(0,0,0,0.75)"
+      <path
+        d={smoothPath(points.map((point) => ({ x: x(point.time), y: y(point.temperature) })))}
+        fill="none"
+        stroke={`url(#${GRADIENT_ID})`}
+        strokeWidth="5"
+        strokeLinecap="round"
+      />
+      {current !== null && (
+        <g>
+          <line
+            x1={x(now)}
+            x2={x(now)}
+            y1={PLOT.top}
+            y2={PLOT.bottom}
+            stroke="white"
+            strokeOpacity=".4"
+            strokeDasharray="3 7"
           />
-        ))}
-      </g>
-      <g id="GraphTexts">
-        {graphTexts.map((graphText) => (
+          <circle
+            cx={x(now)}
+            cy={y(current)}
+            r="8"
+            fill={temperatureToColor(current)}
+            stroke="black"
+            strokeWidth="2"
+          />
+        </g>
+      )}
+      {points.map((point, index) => {
+        const isEdge = index === 0 || index === points.length - 1;
+        const isLabelled =
+          new Date(point.time).getHours() % 3 === 0 || index === highest || index === lowest;
+        if (isEdge || !isLabelled) return null;
+        return (
           <text
-            key={graphText.index}
-            x={graphText.pos.x}
-            y={graphText.pos.y}
-            fontSize="12"
-            fill="#FFF"
+            key={point.time}
+            x={x(point.time)}
+            y={y(point.temperature) - 16}
+            fontSize="22"
             textAnchor="middle"
-            dominantBaseline="text-after-edge"
+            fill={temperatureToColor(point.temperature)}
           >
-            {graphText.text}
+            {Math.round(point.temperature)}°
           </text>
-        ))}
-      </g>
+        );
+      })}
     </g>
   );
 }
