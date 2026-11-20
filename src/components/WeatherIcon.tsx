@@ -55,6 +55,24 @@ const icons: Record<WeatherIconKind, ReactNode> = {
   ),
 };
 
+/** A snowflake, for the warning about slippery roads. Takes its colour from the text around it. */
+export function IceIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={className}
+    >
+      <path d="M12 2v20M3.3 7l17.4 10M3.3 17L20.7 7M9 4l3 2 3-2M9 20l3-2 3 2" />
+    </svg>
+  );
+}
+
 export function WeatherIcon({ kind, className }: { kind: WeatherIconKind; className?: string }) {
   return (
     <svg

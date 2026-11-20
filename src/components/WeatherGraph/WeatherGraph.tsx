@@ -1,5 +1,6 @@
 import { HourPoint } from '../../util/weather/selectors';
 import { HOUR_LABEL_Y, PLOT, VIEW } from './constants';
+import { GraphIce } from './GraphIce';
 import { GraphPrecipitation } from './GraphPrecipitation';
 import { GraphTemperature } from './GraphTemperature';
 import { getTemperatureAxis, linearScale } from './util';
@@ -84,6 +85,7 @@ export function WeatherGraph({ points, now }: Props) {
       ))}
 
       <g clipPath={`url(#${CLIP_ID})`}>
+        <GraphIce points={points} x={x} />
         <GraphPrecipitation points={points} x={x} chanceY={chanceY} />
       </g>
       <GraphTemperature points={points} now={now} x={x} y={y} />

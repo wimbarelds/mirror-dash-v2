@@ -10,6 +10,9 @@ const params = {
     'precipitation_probability',
     'precipitation',
     'weather_code',
+    // Used to estimate the risk of slippery roads (see ice.ts)
+    'soil_temperature_0cm',
+    'relative_humidity_2m',
   ],
   daily: [
     'weather_code',

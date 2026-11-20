@@ -21,6 +21,8 @@ function buildHourly(): Hourly {
     precipitation_probability: history.precipitation_probability,
     precipitation: history.precipitation,
     weather_code: history.weather_code,
+    soil_temperature_0cm: history.soil_temperature_0cm,
+    relative_humidity_2m: history.relative_humidity_2m,
   };
 }
 

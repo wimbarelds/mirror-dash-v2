@@ -1,10 +1,16 @@
+import clsx from 'clsx';
 import { useMemo } from 'react';
 
 import { useNow } from '../util/use-now';
-import { describeRain, formatTemperature, getHourlyWindow } from '../util/weather/selectors';
+import {
+  describeIce,
+  describeRain,
+  formatTemperature,
+  getHourlyWindow,
+} from '../util/weather/selectors';
 import { useWeatherData } from '../util/weather/use-weather-data';
 import { getWeatherCodeInfo } from '../util/weather/weather-code-utils';
-import { WeatherIcon } from './WeatherIcon';
+import { IceIcon, WeatherIcon } from './WeatherIcon';
 
 /** Data older than this is shown as such, instead of passing for current */
 const STALE_AFTER = 45 * 60 * 1000;
@@ -18,10 +24,11 @@ const timeFormat = new Intl.DateTimeFormat(import.meta.env.VITE_LOCALE, {
 export function WeatherCurrent() {
   const { data, isError, dataUpdatedAt } = useWeatherData();
   const now = useNow().getTime();
-  const sentence = useMemo(
-    () => (data ? describeRain(getHourlyWindow(data, now), now) : null),
-    [data, now],
-  );
+  const { sentence, ice } = useMemo(() => {
+    if (!data) return { sentence: null, ice: null };
+    const points = getHourlyWindow(data, now);
+    return { sentence: describeRain(points, now), ice: describeIce(points, now) };
+  }, [data, now]);
 
   if (!data) {
     return isError ? (
@@ -51,6 +58,17 @@ export function WeatherCurrent() {
         </div>
       </div>
       {sentence && <p className="mt-[1.625rem] text-[2rem] text-rain">{sentence}</p>}
+      {ice && (
+        <p
+          className={clsx(
+            'mt-4 inline-flex items-center gap-3 rounded-xl border-[3px] border-ice px-5 py-2 text-[2.25rem] font-medium',
+            ice.level === 'likely' ? 'bg-ice text-black' : 'text-ice',
+          )}
+        >
+          <IceIcon className="size-9" />
+          {ice.text}
+        </p>
+      )}
       {isStale && (
         <p className="mt-2 text-[1.375rem] text-white/40">
           Weerdata van {timeFormat.format(dataUpdatedAt)}

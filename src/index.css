@@ -4,6 +4,7 @@
   /* Roboto where installed; Piboto is Roboto-based and ships with Raspberry Pi OS (incl. Thin/Light) */
   --font-sans: Roboto, Piboto, system-ui, sans-serif;
   --color-rain: #8fc3ff;
+  --color-ice: #7fe3ff;
 }
 
 @layer base {

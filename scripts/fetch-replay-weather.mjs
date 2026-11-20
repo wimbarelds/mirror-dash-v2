@@ -24,6 +24,8 @@ const VARIABLES = [
   'precipitation_probability',
   'weather_code',
   'is_day',
+  'soil_temperature_0cm',
+  'relative_humidity_2m',
 ];
 const DAY = 24 * 60 * 60 * 1000;
 const CHUNK_DAYS = 90;

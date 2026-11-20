@@ -1,3 +1,4 @@
+import { getIceRisk } from '../util/weather/ice';
 import { DAYS, history, timeAt } from './history';
 
 export interface Highlight {
@@ -27,6 +28,8 @@ interface DayStats {
   drizzleHours: number;
   firstDrizzle: number;
   rainChanges: number;
+  iceHours: number;
+  firstIce: number;
 }
 
 function getDayStats(day: number): DayStats {
@@ -47,6 +50,8 @@ function getDayStats(day: number): DayStats {
     drizzleHours: 0,
     firstDrizzle: 0,
     rainChanges: 0,
+    iceHours: 0,
+    firstIce: 0,
   };
 
   for (let hour = 0; hour < 24; hour++) {
@@ -65,6 +70,7 @@ function getDayStats(day: number): DayStats {
     if (FOG.has(code) && stats.fogHours++ === 0) stats.firstFog = hour;
     if (DRIZZLE.has(code) && stats.drizzleHours++ === 0) stats.firstDrizzle = hour;
     if (code === 0) stats.clearHours++;
+    if (getIceRisk(history, i) === 'likely' && stats.iceHours++ === 0) stats.firstIce = hour;
     if (hour > 0 && precipitation >= 0.1 !== history.precipitation[i - 1] >= 0.1) {
       stats.rainChanges++;
     }
@@ -95,6 +101,7 @@ export function getHighlights(): Highlight[] {
   const fog = pick(days, (d) => d.fogHours);
   const drizzle = pick(days, (d) => d.drizzleHours);
   const changeable = pick(days, (d) => d.rainChanges);
+  const icy = pick(days, (d) => d.iceHours);
   const frost = pick(
     days.filter((d) => d.min < -2 && d.clearHours >= 8),
     (d) => -d.min,
@@ -114,6 +121,7 @@ export function getHighlights(): Highlight[] {
     { label: 'Sneeuw', at: before(snow.day, snow.firstSnow) },
     { label: 'Mist', at: before(fog.day, fog.firstFog) },
     { label: 'Heldere vorst', at: before(frost.day, 18) },
+    { label: 'Gladheid', at: before(icy.day, icy.firstIce) },
     { label: 'Zonnig en droog', at: before(dry.day, 12) },
   ];
   return cached;

@@ -1,5 +1,6 @@
-import { SNOW_CODES } from './constants';
+import { PRECIPITATION_CODES, SNOW_CODES } from './constants';
 import { WeatherData } from './fetch-weather';
+import { getIceRisk, IceRisk } from './ice';
 
 const HOUR = 60 * 60 * 1000;
 
@@ -12,6 +13,8 @@ export interface HourPoint {
   /** mm in this hour */
   precipitation: number;
   weatherCode: number;
+  /** Risk of slippery roads */
+  ice: IceRisk;
 }
 
 /** Hours before the current hour that the graph starts at */
@@ -39,6 +42,7 @@ export function getHourlyWindow(data: WeatherData, now: number): HourPoint[] {
       precipProbability: precipitation_probability[index],
       precipitation: precipitation[index],
       weatherCode: weather_code[index],
+      ice: getIceRisk(data.hourly, index),
     });
   }
   return points;
@@ -65,17 +69,23 @@ export function getDaySummary(data: WeatherData, at: number): DaySummary | null 
   };
 }
 
-/** Whether an hour counts as wet: ignores the many tiny probabilities that come with no actual rain */
+/**
+ * Whether an hour counts as wet. Some rain has to be expected: a high chance on its own, with 0 mm,
+ * doesn't count. The weather code is accepted as confirmation, since its probability can dip
+ * in the middle of a spell of snow or rain.
+ */
 export function isWetHour(point: HourPoint) {
+  if (point.precipitation >= 0.5) return true;
   return (
-    (point.precipProbability >= 40 && point.precipitation >= 0.1) || point.precipitation >= 0.5
+    point.precipitation >= 0.1 &&
+    (point.precipProbability >= 40 || PRECIPITATION_CODES.has(point.weatherCode))
   );
 }
 
 /** Chance of rain (%) from which "dry" would be misleading even when no rain is expected */
 const LIKELY_CHANCE = 60;
 
-const isSnow = (point: HourPoint) => SNOW_CODES.has(point.weatherCode);
+export const isSnow = (point: HourPoint) => SNOW_CODES.has(point.weatherCode);
 
 function formatHour(time: number) {
   return `${String(new Date(time).getHours()).padStart(2, '0')}:00`;
@@ -89,7 +99,11 @@ export function describeRain(points: HourPoint[], now: number): string | null {
 
   if (isWetHour(points[current])) {
     const kind = isSnow(points[current]) ? 'Sneeuw' : 'Regen';
-    const dry = upcoming.find((point) => !isWetHour(point));
+    // A single dry hour in between doesn't end it; it has to stay dry for two hours
+    const dry = upcoming.find((point, i) => {
+      const next = upcoming[i + 1];
+      return !isWetHour(point) && !(next && isWetHour(next));
+    });
     return dry
       ? `${kind} tot ${formatHour(dry.time)}, daarna droog`
       : `${kind} de komende uren, ook later nog`;
@@ -105,6 +119,40 @@ export function describeRain(points: HourPoint[], now: number): string | null {
     return `Droog, maar kans op ${isSnow(peak) ? 'sneeuw' : 'regen'} rond ${formatHour(peak.time)}`;
   }
   return `Droog de komende ${upcoming.length} uur`;
+}
+
+export interface IceWarning {
+  /** "likely" is frozen or freezing roads; "possible" is close to it */
+  level: Exclude<IceRisk, 'none'>;
+  text: string;
+}
+
+/** Only mention slippery roads that start within this many hours; further out is too uncertain */
+const ICE_LOOKAHEAD_HOURS = 12;
+
+/** A warning for slippery roads now or soon, or null when there is none to give */
+export function describeIce(points: HourPoint[], now: number): IceWarning | null {
+  const current = points.findIndex((point) => point.time <= now && now < point.time + HOUR);
+  if (current === -1) return null;
+
+  const horizon = now + ICE_LOOKAHEAD_HOURS * HOUR;
+  const start = points.findIndex(
+    (point, index) => index >= current && point.time < horizon && point.ice !== 'none',
+  );
+  if (start === -1) return null;
+
+  let end = start;
+  while (end + 1 < points.length && points[end + 1].ice !== 'none') end++;
+
+  const level = points.slice(start, end + 1).some((point) => point.ice === 'likely')
+    ? 'likely'
+    : 'possible';
+  const label = level === 'likely' ? 'Gladheid' : 'Kans op gladheid';
+  const clearAgain = points[end + 1];
+
+  if (start > current) return { level, text: `${label} vanaf ${formatHour(points[start].time)}` };
+  if (!clearAgain) return { level, text: `${label} de komende uren` };
+  return { level, text: `${label} tot ${formatHour(clearAgain.time)}` };
 }
 
 export const formatTemperature = (value: number) => `${Math.round(value)}°`;
