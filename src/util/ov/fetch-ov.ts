@@ -1,3 +1,4 @@
+import { handleFetchError } from './ov-cors-error';
 import { OVDataSchema } from './schema';
 
 function getTimestamp() {
@@ -8,10 +9,11 @@ function getTimestamp() {
 
 export function getOVData() {
   const halteId = import.meta.env.VITE_OV_HALTE_ID;
-  const targetUrl = `http://v0.ovapi.nl/tpc/${halteId}?t=${getTimestamp()}`;
-  const proxyUrl = `https://corsproxy.io/?${targetUrl}`;
+  const apiUrl = import.meta.env.VITE_OV_API_URL ?? '//v0.ovapi.nl';
+  const url = `${apiUrl}/tpc/${halteId}?t=${getTimestamp()}`;
 
-  return fetch(proxyUrl)
+  return fetch(url)
+    .catch((error: unknown) => handleFetchError(url, error))
     .then((response) => response.json())
     .then((data) => OVDataSchema.parse(data))
     .then((data) => data[halteId]);

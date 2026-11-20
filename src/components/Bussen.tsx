@@ -1,10 +1,11 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { z } from 'zod';
 
 import BusIcon from '../assets/Bus_stop_symbol.svg';
 import { FETCH_INTERVAL, FILTER_MAX_TIME_ELAPSED } from '../util/ov/constants';
 import { getOVData } from '../util/ov/fetch-ov';
+import { isOVCorsError } from '../util/ov/ov-cors-error';
 import { TimingPointSchema } from '../util/ov/schema';
 
 type DataRaw = z.infer<typeof TimingPointSchema>;
@@ -86,6 +87,9 @@ function Bus({ ExpectedDepartureTime }: BusPass) {
 }
 
 export function Bussen() {
+  const queryClient = useQueryClient();
+  const corsBlocked = isOVCorsError(queryClient.getQueryState(['ovdata'])?.error);
+
   const {
     isLoading,
     isError,
@@ -93,11 +97,15 @@ export function Bussen() {
   } = useQuery({
     queryKey: ['ovdata'],
     queryFn: getOVData,
+    enabled: !corsBlocked, // Avoid retry for CORS error
+    retry: (failureCount, error) => !isOVCorsError(error) && failureCount < 3,
     refetchInterval: FETCH_INTERVAL, // 2 minuten
     refetchIntervalInBackground: true,
     staleTime: FETCH_INTERVAL, // 2 minuten
     select: (data) => mapBusPass(data),
   });
+
+  if (corsBlocked) return 'OV-data kan niet worden opgehaald: geblokkeerd door CORS';
 
   if (!bussen) {
     if (isError) return 'Er is een fout opgetreden bij het ophalen van de data';

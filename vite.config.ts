@@ -16,5 +16,12 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
     lint: lintCfg,
     fmt: fmtCfg,
     base: env.BASE_DIR || '/',
+    server: {
+      proxy: {
+        // Dev only: the OV API sends no CORS headers, so forward requests server-side instead.
+        // Used when VITE_OV_API_URL is set to an empty string (same-origin `/tpc/...` requests).
+        '/tpc': { target: 'http://v0.ovapi.nl', changeOrigin: true },
+      },
+    },
   };
 });
