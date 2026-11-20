@@ -1,3 +1,5 @@
+import { ReactNode } from 'react';
+
 import { HourPoint, isSnow } from '../../util/weather/selectors';
 import { PLOT, VIEW } from './constants';
 import { Point, Scale } from './types';
@@ -49,11 +51,64 @@ const textureId = (kind: Kind) => `precipitation-${kind}-texture`;
 const maskId = (kind: Kind) => `precipitation-${kind}-mask`;
 const weightId = (kind: Kind) => `precipitation-${kind}-weight`;
 
+/** A small seeded random number generator: the textures look random, but are always the same */
+function createRandom(seed: number) {
+  return () => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 /**
- * The motifs the textures are made of, drawn in a space where they have a radius of about 1 and
- * scaled into place. A raindrop is a round body with a slight tip.
+ * Each texture covers the whole plot in one piece, so nothing repeats within the graph. They are made
+ * once when the page loads, as the same elements every time, so redrawing the graph costs nothing.
  */
-const DROP_PATH = 'M0 -1.35 C0.3 -0.75 1 -0.2 1 0.4 A1 1 0 0 1 -1 0.4 C-1 -0.2 -0.3 -0.75 0 -1.35Z';
+const TEXTURE = {
+  x: PLOT.left,
+  y: PLOT.top - 8,
+  width: PLOT.right - PLOT.left,
+  height: PLOT.bottom - PLOT.top + 8,
+};
+
+/**
+ * Motifs are placed one per cell of a grid, moved a little off its centre (by up to this fraction of
+ * a cell) and given a random size and angle. Pure randomness leaves bare patches and clumps, which
+ * read as holes in the stroke; this looks irregular but can't leave a gap bigger than about a cell.
+ */
+const JITTER = 0.7;
+
+function scatter(
+  seed: number,
+  cell: number,
+  place: (random: () => number, x: number, y: number, col: number, row: number) => void,
+) {
+  const random = createRandom(seed);
+  const cols = Math.ceil(TEXTURE.width / cell);
+  const rows = Math.ceil(TEXTURE.height / cell);
+
+  for (let col = 0; col < cols; col++) {
+    for (let row = 0; row < rows; row++) {
+      const x = (col + 0.5 + (random() - 0.5) * JITTER) * cell;
+      const y = (row + 0.5 + (random() - 0.5) * JITTER) * cell;
+      place(random, x, y, col, row);
+    }
+  }
+}
+
+/** A raindrop: a round body with a slight tip. Positions are in a space where the body has radius 1. */
+const DROP: { control: [number, number][] } = {
+  control: [
+    [0, -1.35], // tip
+    [0.3, -0.75],
+    [1, -0.2],
+    [1, 0.4], // right of the body
+    [-1, 0.4], // left of the body (reached by an arc)
+    [-1, -0.2],
+    [-0.3, -0.75],
+  ],
+};
 
 /** A snowflake: three arms crossing at 60 degrees, each with a small chevron near the tip */
 const FLAKE_ARM: [number, number][][] = [
@@ -73,87 +128,133 @@ const FLAKE_ARM: [number, number][][] = [
   ],
 ];
 
-const FLAKE_PATH = [0, 60, 120]
-  .flatMap((degrees) => {
-    const angle = (degrees * Math.PI) / 180;
-    return FLAKE_ARM.map((line) =>
-      line
-        .map(([px, py], i) => {
-          const rx = px * Math.cos(angle) - py * Math.sin(angle);
-          const ry = px * Math.sin(angle) + py * Math.cos(angle);
-          return `${i === 0 ? 'M' : 'L'}${rx.toFixed(3)} ${ry.toFixed(3)}`;
-        })
-        .join(''),
-    );
-  })
-  .join('');
-
-/** A flake of the given radius; its lines stay `line` wide whatever the radius */
-function Flake({
-  x,
-  y,
-  radius,
-  line = 1.4,
-}: {
-  x: number;
-  y: number;
-  radius: number;
-  line?: number;
-}) {
-  return (
-    <path
-      d={FLAKE_PATH}
-      transform={`translate(${x} ${y}) scale(${radius})`}
-      stroke={SNOW_COLOR}
-      strokeWidth={line / radius}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      fill="none"
-    />
-  );
+/** Moves, scales and turns a point of a motif into its place in the texture */
+function placer(x: number, y: number, scale: number, degrees: number) {
+  const angle = (degrees * Math.PI) / 180;
+  const [cos, sin] = [Math.cos(angle), Math.sin(angle)];
+  return ([px, py]: [number, number]) =>
+    `${(x + scale * (px * cos - py * sin)).toFixed(1)} ${(y + scale * (px * sin + py * cos)).toFixed(1)}`;
 }
 
-/** Staggered raindrops of a few sizes, slanted as if blown by the wind */
-function RainTexture() {
+/** Path data for a raindrop of the given size, leaning by `degrees` */
+function dropPath(x: number, y: number, scale: number, degrees: number) {
+  const p = placer(x, y, scale, degrees);
+  const [tip, c1, c2, right, left, c3, c4] = DROP.control;
+  const r = scale.toFixed(2);
+  return `M${p(tip)}C${p(c1)} ${p(c2)} ${p(right)}A${r} ${r} 0 0 1 ${p(left)}C${p(c3)} ${p(c4)} ${p(tip)}Z`;
+}
+
+/** Path data for a snowflake of the given radius, turned by `degrees` */
+function flakePath(x: number, y: number, radius: number, degrees: number) {
+  return [0, 60, 120]
+    .flatMap((arm) => {
+      const p = placer(x, y, radius, degrees + arm);
+      return FLAKE_ARM.map((line) =>
+        line.map((point, i) => `${i === 0 ? 'M' : 'L'}${p(point)}`).join(''),
+      );
+    })
+    .join('');
+}
+
+/** A circle as path data, so specks can be part of the same path as everything else */
+const speckPath = (x: number, y: number, r: number) =>
+  `M${(x - r).toFixed(1)} ${y.toFixed(1)}a${r.toFixed(2)} ${r.toFixed(2)} 0 1 0 ${(2 * r).toFixed(2)} 0a${r.toFixed(2)} ${r.toFixed(2)} 0 1 0 ${(-2 * r).toFixed(2)} 0Z`;
+
+/**
+ * Collects the motifs of a texture as path data, sorted at random into a few opacity steps. Thousands
+ * of motifs end up as only a handful of elements, which keeps the graph light to draw.
+ */
+const OPACITY_STEPS = [0.55, 0.7, 0.85, 1];
+
+function createLayers() {
+  const data = OPACITY_STEPS.map(() => '');
+  return {
+    add(random: () => number, d: string) {
+      data[Math.floor(random() * OPACITY_STEPS.length)] += d;
+    },
+    render(props: { fill?: string; stroke?: string; strokeWidth?: number }, keyPrefix: string) {
+      return data.map(
+        (d, i) =>
+          d && (
+            <path
+              key={`${keyPrefix}-${i}`}
+              d={d}
+              opacity={OPACITY_STEPS[i]}
+              fill={props.fill ?? 'none'}
+              stroke={props.stroke}
+              strokeWidth={props.strokeWidth}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          ),
+      );
+    },
+  };
+}
+
+/** One raindrop per cell: different sizes, all leaning a little as if blown by the wind */
+function buildRainTexture(): ReactNode {
+  const drops = createLayers();
+  scatter(7, 15, (random, x, y) => {
+    const degrees = 6 + random() * 14;
+    const scale = 1.7 + random() * 1.9;
+    drops.add(random, dropPath(x, y, scale, degrees));
+  });
+
   return (
     <pattern
       id={textureId('rain')}
-      width="34"
-      height="40"
+      x={TEXTURE.x}
+      y={TEXTURE.y}
+      width={TEXTURE.width}
+      height={TEXTURE.height}
       patternUnits="userSpaceOnUse"
-      patternTransform="rotate(12)"
     >
-      <rect width="34" height="40" fill={RAIN_COLOR} fillOpacity=".14" />
-      <g fill={RAIN_COLOR}>
-        <path d={DROP_PATH} transform="translate(8 11) scale(3.4)" opacity=".95" />
-        <path d={DROP_PATH} transform="translate(25 19) scale(2.8)" opacity=".8" />
-        <path d={DROP_PATH} transform="translate(13 31) scale(3)" opacity=".88" />
-        <path d={DROP_PATH} transform="translate(28 6) scale(2)" opacity=".6" />
-        <path d={DROP_PATH} transform="translate(30 34) scale(1.6)" opacity=".5" />
-      </g>
+      <rect width={TEXTURE.width} height={TEXTURE.height} fill={RAIN_COLOR} fillOpacity=".14" />
+      {drops.render({ fill: RAIN_COLOR }, 'drops')}
     </pattern>
   );
 }
 
-/** Staggered snowflakes of a few sizes, with specks of snow in between */
-function SnowTexture() {
+/**
+ * Snowflakes and specks, one per small cell. In every block of 2x2 cells exactly one is a snowflake,
+ * chosen at random, so flakes are spread evenly as well and the stroke is dense without being uniform.
+ */
+function buildSnowTexture(): ReactNode {
+  const flakes = createLayers();
+  const specks = createLayers();
+  const flakeInBlock = new Map<string, number>();
+
+  scatter(11, 12, (random, x, y, col, row) => {
+    const block = `${col >> 1}-${row >> 1}`;
+    if (!flakeInBlock.has(block)) flakeInBlock.set(block, Math.floor(random() * 4));
+    const isFlake = flakeInBlock.get(block) === (col & 1) + 2 * (row & 1);
+
+    if (isFlake) {
+      flakes.add(random, flakePath(x, y, 2.6 + random() * 2.4, random() * 60));
+    } else {
+      specks.add(random, speckPath(x, y, 0.9 + random() * 1.3));
+    }
+  });
+
   return (
-    <pattern id={textureId('snow')} width="42" height="42" patternUnits="userSpaceOnUse">
-      <rect width="42" height="42" fill={SNOW_COLOR} fillOpacity=".12" />
-      <Flake x={11} y={11} radius={4.6} />
-      <Flake x={31} y={28} radius={3.8} />
-      <Flake x={31} y={8} radius={2.6} line={1.1} />
-      <g fill={SNOW_COLOR}>
-        <circle cx="22" cy="19" r="1.6" opacity=".85" />
-        <circle cx="6" cy="30" r="1.4" opacity=".7" />
-        <circle cx="20" cy="36" r="2" opacity=".85" />
-        <circle cx="38" cy="18" r="1.2" opacity=".65" />
-        <circle cx="21" cy="4" r="1.1" opacity=".6" />
-        <circle cx="37" cy="39" r="1.5" opacity=".7" />
-      </g>
+    <pattern
+      id={textureId('snow')}
+      x={TEXTURE.x}
+      y={TEXTURE.y}
+      width={TEXTURE.width}
+      height={TEXTURE.height}
+      patternUnits="userSpaceOnUse"
+    >
+      <rect width={TEXTURE.width} height={TEXTURE.height} fill={SNOW_COLOR} fillOpacity=".12" />
+      {specks.render({ fill: SNOW_COLOR }, 'specks')}
+      {flakes.render({ stroke: SNOW_COLOR, strokeWidth: 1.3 }, 'flakes')}
     </pattern>
   );
 }
+
+const RAIN_TEXTURE = buildRainTexture();
+const SNOW_TEXTURE = buildSnowTexture();
 
 /**
  * Precipitation as one textured stroke, like a brush stroke. It follows the chance of precipitation
@@ -187,8 +288,8 @@ export function GraphPrecipitation({ points, x, chanceY }: Props) {
   return (
     <g>
       <defs>
-        <RainTexture />
-        <SnowTexture />
+        {RAIN_TEXTURE}
+        {SNOW_TEXTURE}
         {KINDS.map((kind) => (
           <linearGradient
             key={kind}
