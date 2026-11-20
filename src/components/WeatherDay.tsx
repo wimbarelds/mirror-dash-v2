@@ -1,14 +1,10 @@
+import { useNow } from '../util/use-now';
 import { useWeatherData } from '../util/weather/use-weather-data';
 import { getWeatherCodeInfo } from '../util/weather/weather-code-utils';
 
-function getToday() {
-  const date = new Date();
+function getDayOffsetDate(now: Date, offset: number) {
+  const date = new Date(now);
   date.setHours(12, 0, 0, 0);
-  return date;
-}
-
-function getDayOffsetDate(offset: number) {
-  const date = getToday();
   date.setDate(date.getDate() + offset);
   return date;
 }
@@ -32,7 +28,7 @@ interface Props {
 
 export function WeatherDay({ dayOffset = 0 }: Props) {
   const { data } = useWeatherData();
-  const date = getDayOffsetDate(dayOffset);
+  const date = getDayOffsetDate(useNow(), dayOffset);
 
   if (!data) return 'No data!';
   const dayIndex = data.daily.time.findIndex((item) => sameDay(date, item));

@@ -1,14 +1,21 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useReducer } from 'react';
 
-/** The current time, refreshed at the start of every minute. */
+import { useDataSources } from '../data-sources';
+
+/**
+ * The current time, refreshed at the start of every minute. In a replay it follows the simulated
+ * time instead, and re-renders when that changes.
+ */
 export function useNow() {
-  const [now, setNow] = useState(() => new Date());
+  const { now, live } = useDataSources();
+  const [ticks, tick] = useReducer((count: number) => count + 1, 0);
 
   useEffect(() => {
-    const msUntilNextMinute = 60_000 - (now.getTime() % 60_000);
-    const timeout = setTimeout(() => setNow(new Date()), msUntilNextMinute + 50);
+    if (!live) return;
+    const msUntilNextMinute = 60_000 - (now() % 60_000);
+    const timeout = setTimeout(tick, msUntilNextMinute + 50);
     return () => clearTimeout(timeout);
-  }, [now]);
+  }, [live, now, ticks]);
 
-  return now;
+  return new Date(now());
 }

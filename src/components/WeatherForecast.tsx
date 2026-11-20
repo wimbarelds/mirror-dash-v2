@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
+import { useNow } from '../util/use-now';
 import { useWeatherData } from '../util/weather/use-weather-data';
 import { Point } from './WeatherGraph/types';
 import { WeatherGraph } from './WeatherGraph/WeatherGraph';
@@ -14,13 +15,8 @@ function isNext24Hours(date: Date, now: number) {
 export function WeatherForecast() {
   const { data } = useWeatherData();
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
-  const [now, setNow] = useState(Date.now());
+  const now = useNow().getTime();
   const [size, setSize] = useState<Point | null>(null);
-
-  useEffect(() => {
-    const timeout = setTimeout(() => setNow(Date.now()), 1000 * 60 * 5);
-    return () => clearTimeout(timeout);
-  }, [now]);
 
   const dataPoints = useMemo(() => {
     if (!container) return [];

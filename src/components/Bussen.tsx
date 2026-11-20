@@ -1,17 +1,15 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
-import { ReactNode, useEffect, useMemo, useState } from 'react';
-import { z } from 'zod';
+import { ReactNode, useEffect, useReducer } from 'react';
 
+import { useDataSources } from '../data-sources';
 import { FETCH_INTERVAL, FILTER_MAX_TIME_ELAPSED, MAX_BUSES } from '../util/ov/constants';
-import { getOVData } from '../util/ov/fetch-ov';
 import { isOVCorsError } from '../util/ov/ov-cors-error';
-import { TimingPointSchema } from '../util/ov/schema';
+import { TimingPoint } from '../util/ov/schema';
 
-type DataRaw = z.infer<typeof TimingPointSchema>;
 type BusPass = ReturnType<typeof mapBusPass>[number];
 
-function mapBusPass(data: DataRaw) {
+function mapBusPass(data: TimingPoint, now: number) {
   return Object.entries(data.Passes)
     .map(([id, pass]) => ({ Id: id, ...pass }))
     .sort((a, b) => a.ExpectedArrivalTime.localeCompare(b.ExpectedArrivalTime))
@@ -22,7 +20,7 @@ function mapBusPass(data: DataRaw) {
       TargetArrivalTime: new Date(bus.TargetArrivalTime),
       TargetDepartureTime: new Date(bus.TargetDepartureTime),
     }))
-    .filter((item) => item.ExpectedDepartureTime.getTime() > Date.now())
+    .filter((item) => item.ExpectedDepartureTime.getTime() > now)
     .slice(0, MAX_BUSES);
 }
 
@@ -52,15 +50,16 @@ function getRiskClass(timeLeft: number) {
   return 'text-white';
 }
 
-const getTimeLeft = (departure: Date) => departure.getTime() - Date.now();
-
 function Bus({
   ExpectedDepartureTime,
   LinePublicNumber,
   DestinationName50,
   next,
 }: BusPass & { next: boolean }) {
-  const [timeLeft, setTimeleft] = useState(() => getTimeLeft(ExpectedDepartureTime));
+  const { now } = useDataSources();
+  const [, refresh] = useReducer((count: number) => count + 1, 0);
+  // Derived on every render, so it follows the clock whether time runs by itself or is set by hand
+  const timeLeft = ExpectedDepartureTime.getTime() - now();
 
   useEffect(() => {
     let delay = 60 * 60 * 1000; // 1 hour
@@ -70,19 +69,15 @@ function Bus({
       delay = (timeLeft % 60000) + 1; // <100m = next minute
     else delay = (timeLeft % 3600000) + 1; // >100m = next hour
 
-    const timeout = setTimeout(() => setTimeleft(() => getTimeLeft(ExpectedDepartureTime)), delay);
+    const timeout = setTimeout(refresh, delay);
     return () => clearTimeout(timeout);
-  }, [ExpectedDepartureTime, timeLeft]);
-
-  const { riskClassName, timeStr, remaining } = useMemo(() => {
-    return {
-      riskClassName: getRiskClass(timeLeft),
-      timeStr: formatTime(ExpectedDepartureTime),
-      remaining: timeDiff(timeLeft),
-    };
-  }, [timeLeft, ExpectedDepartureTime]);
+  }, [timeLeft]);
 
   if (timeLeft < FILTER_MAX_TIME_ELAPSED) return null;
+
+  const riskClassName = getRiskClass(timeLeft);
+  const timeStr = formatTime(ExpectedDepartureTime);
+  const remaining = timeDiff(timeLeft);
 
   return (
     <div className={clsx(riskClassName, 'flex items-center gap-7 text-nowrap')}>
@@ -109,22 +104,26 @@ function Message({ children }: { children: ReactNode }) {
 }
 
 export function Bussen() {
+  const { key, now, fetchBuses } = useDataSources();
+  const queryKey = ['ovdata', key];
   const queryClient = useQueryClient();
-  const corsBlocked = isOVCorsError(queryClient.getQueryState(['ovdata'])?.error);
+  const corsBlocked = isOVCorsError(queryClient.getQueryState(queryKey)?.error);
 
   const {
     isLoading,
     isError,
     data: bussen,
   } = useQuery({
-    queryKey: ['ovdata'],
-    queryFn: getOVData,
+    queryKey,
+    queryFn: fetchBuses,
     enabled: !corsBlocked, // Avoid retry for CORS error
     retry: (failureCount, error) => !isOVCorsError(error) && failureCount < 3,
     refetchInterval: FETCH_INTERVAL, // 2 minuten
     refetchIntervalInBackground: true,
     staleTime: FETCH_INTERVAL, // 2 minuten
-    select: (data) => mapBusPass(data),
+    // A replay switches to a new key for every moment: keep showing the previous one meanwhile
+    placeholderData: keepPreviousData,
+    select: (data) => mapBusPass(data, now()),
   });
 
   if (corsBlocked)

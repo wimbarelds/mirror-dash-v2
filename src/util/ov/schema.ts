@@ -59,5 +59,8 @@ export const TimingPointSchema = z.object({
 
 export const OVDataSchema = z.record(z.string(), TimingPointSchema);
 
+export type Pass = z.infer<typeof PassSchema>;
+export type TimingPoint = z.infer<typeof TimingPointSchema>;
+
 // Example usage:
 // const data = DataSchema.parse(yourData);

@@ -3,7 +3,7 @@ import { fetchWeatherApi } from 'openmeteo';
 const params = {
   latitude: 53.247072,
   longitude: 6.588939,
-  current: ['temperature_2m', 'apparent_temperature', 'precipitation', 'weather_code'],
+  current: ['temperature_2m', 'apparent_temperature', 'precipitation', 'weather_code', 'is_day'],
   hourly: [
     'temperature_2m',
     'apparent_temperature',
@@ -21,6 +21,8 @@ const params = {
     'precipitation_probability_max',
   ],
   timezone: 'Europe/Amsterdam',
+  // The graph starts two hours in the past, which just after midnight is still yesterday
+  past_days: 1,
 } as const;
 const url = 'https://api.open-meteo.com/v1/forecast';
 
@@ -87,6 +89,8 @@ function getWeatherData(result: WeatherApiResponse) {
     },
   };
 }
+
+export type WeatherData = NonNullable<ReturnType<typeof getWeatherData>>;
 
 export function fetchWeatherData() {
   return fetchWeatherApi(url, params)
