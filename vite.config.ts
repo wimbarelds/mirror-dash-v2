@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import process from 'process';
 
 import tailwindcss from '@tailwindcss/vite';
@@ -16,6 +17,16 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
     lint: lintCfg,
     fmt: fmtCfg,
     base: env.BASE_DIR || '/',
+    build: {
+      rollupOptions: {
+        // Two pages: the mirror itself, and a replay of recorded weather for testing (replay.html).
+        // The recorded data is only reachable from the second one, so the mirror never loads it.
+        input: {
+          main: resolve(process.cwd(), 'index.html'),
+          replay: resolve(process.cwd(), 'replay.html'),
+        },
+      },
+    },
     server: {
       proxy: {
         // Dev only: the OV API sends no CORS headers, so forward requests server-side instead.
