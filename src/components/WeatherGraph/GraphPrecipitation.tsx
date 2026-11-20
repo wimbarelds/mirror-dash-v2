@@ -17,9 +17,9 @@ const SNOW_COLOR = '#ffffff';
  * Thickness of the stroke: a minimum for any hour with a chance of precipitation, growing with the
  * square root of the amount so light rain stays visible, up to a limit. In drawing units.
  */
-const MIN_THICKNESS = 7;
-const THICKNESS_PER_ROOT_MM = 24;
-const MAX_THICKNESS = 64;
+const MIN_THICKNESS = 12;
+const THICKNESS_PER_ROOT_MM = 26;
+const MAX_THICKNESS = 68;
 
 /** A softer, wider copy behind the stroke feathers its edges (SVG filters are too heavy for a Pi 3) */
 const LAYERS = [
@@ -49,47 +49,107 @@ const textureId = (kind: Kind) => `precipitation-${kind}-texture`;
 const maskId = (kind: Kind) => `precipitation-${kind}-mask`;
 const weightId = (kind: Kind) => `precipitation-${kind}-weight`;
 
-/** Slanted streaks of rain */
+/**
+ * The motifs the textures are made of, drawn in a space where they have a radius of about 1 and
+ * scaled into place. A raindrop is a round body with a slight tip.
+ */
+const DROP_PATH = 'M0 -1.35 C0.3 -0.75 1 -0.2 1 0.4 A1 1 0 0 1 -1 0.4 C-1 -0.2 -0.3 -0.75 0 -1.35Z';
+
+/** A snowflake: three arms crossing at 60 degrees, each with a small chevron near the tip */
+const FLAKE_ARM: [number, number][][] = [
+  [
+    [0, -1],
+    [0, 1],
+  ],
+  [
+    [-0.3, -0.62],
+    [0, -0.92],
+    [0.3, -0.62],
+  ],
+  [
+    [-0.3, 0.62],
+    [0, 0.92],
+    [0.3, 0.62],
+  ],
+];
+
+const FLAKE_PATH = [0, 60, 120]
+  .flatMap((degrees) => {
+    const angle = (degrees * Math.PI) / 180;
+    return FLAKE_ARM.map((line) =>
+      line
+        .map(([px, py], i) => {
+          const rx = px * Math.cos(angle) - py * Math.sin(angle);
+          const ry = px * Math.sin(angle) + py * Math.cos(angle);
+          return `${i === 0 ? 'M' : 'L'}${rx.toFixed(3)} ${ry.toFixed(3)}`;
+        })
+        .join(''),
+    );
+  })
+  .join('');
+
+/** A flake of the given radius; its lines stay `line` wide whatever the radius */
+function Flake({
+  x,
+  y,
+  radius,
+  line = 1.4,
+}: {
+  x: number;
+  y: number;
+  radius: number;
+  line?: number;
+}) {
+  return (
+    <path
+      d={FLAKE_PATH}
+      transform={`translate(${x} ${y}) scale(${radius})`}
+      stroke={SNOW_COLOR}
+      strokeWidth={line / radius}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      fill="none"
+    />
+  );
+}
+
+/** Staggered raindrops of a few sizes, slanted as if blown by the wind */
 function RainTexture() {
   return (
     <pattern
       id={textureId('rain')}
-      width="26"
-      height="32"
+      width="34"
+      height="40"
       patternUnits="userSpaceOnUse"
-      patternTransform="rotate(14)"
+      patternTransform="rotate(12)"
     >
-      <rect width="26" height="32" fill={RAIN_COLOR} fillOpacity=".16" />
-      <g stroke={RAIN_COLOR} strokeLinecap="round" fill="none">
-        <path d="M3 3V15" strokeWidth="1.6" opacity=".9" />
-        <path d="M12 12V30" strokeWidth="1.2" opacity=".7" />
-        <path d="M20 1V10" strokeWidth="1.8" opacity=".95" />
-        <path d="M7 21V29" strokeWidth="1.2" opacity=".6" />
-        <path d="M22 17V27" strokeWidth="1.4" opacity=".8" />
+      <rect width="34" height="40" fill={RAIN_COLOR} fillOpacity=".14" />
+      <g fill={RAIN_COLOR}>
+        <path d={DROP_PATH} transform="translate(8 11) scale(3.4)" opacity=".95" />
+        <path d={DROP_PATH} transform="translate(25 19) scale(2.8)" opacity=".8" />
+        <path d={DROP_PATH} transform="translate(13 31) scale(3)" opacity=".88" />
+        <path d={DROP_PATH} transform="translate(28 6) scale(2)" opacity=".6" />
+        <path d={DROP_PATH} transform="translate(30 34) scale(1.6)" opacity=".5" />
       </g>
     </pattern>
   );
 }
 
-/** Speckles and a few tiny flakes of snow */
+/** Staggered snowflakes of a few sizes, with specks of snow in between */
 function SnowTexture() {
   return (
-    <pattern id={textureId('snow')} width="34" height="34" patternUnits="userSpaceOnUse">
-      <rect width="34" height="34" fill={SNOW_COLOR} fillOpacity=".12" />
+    <pattern id={textureId('snow')} width="42" height="42" patternUnits="userSpaceOnUse">
+      <rect width="42" height="42" fill={SNOW_COLOR} fillOpacity=".12" />
+      <Flake x={11} y={11} radius={4.6} />
+      <Flake x={31} y={28} radius={3.8} />
+      <Flake x={31} y={8} radius={2.6} line={1.1} />
       <g fill={SNOW_COLOR}>
-        <circle cx="5" cy="6" r="1.6" opacity=".9" />
-        <circle cx="17" cy="4" r="1" opacity=".7" />
-        <circle cx="28" cy="9" r="2" opacity=".85" />
-        <circle cx="10" cy="19" r="2.2" opacity=".9" />
-        <circle cx="23" cy="22" r="1.4" opacity=".75" />
-        <circle cx="31" cy="30" r="1" opacity=".6" />
-        <circle cx="4" cy="29" r="1.2" opacity=".7" />
-        <circle cx="16" cy="31" r="1.8" opacity=".85" />
-        <circle cx="26" cy="15" r=".9" opacity=".6" />
-      </g>
-      <g stroke={SNOW_COLOR} strokeWidth="1" strokeLinecap="round" fill="none" opacity=".9">
-        <path d="M12 8h5M14.5 5.8v4.4M13.1 6.4l2.8 3.2M15.9 6.4l-2.8 3.2" />
-        <path d="M24 26h5M26.5 23.8v4.4M25.1 24.4l2.8 3.2M27.9 24.4l-2.8 3.2" />
+        <circle cx="22" cy="19" r="1.6" opacity=".85" />
+        <circle cx="6" cy="30" r="1.4" opacity=".7" />
+        <circle cx="20" cy="36" r="2" opacity=".85" />
+        <circle cx="38" cy="18" r="1.2" opacity=".65" />
+        <circle cx="21" cy="4" r="1.1" opacity=".6" />
+        <circle cx="37" cy="39" r="1.5" opacity=".7" />
       </g>
     </pattern>
   );
