@@ -52,48 +52,6 @@ export function smoothSegments(points: Point[], bounds?: Bounds) {
     .join('');
 }
 
-const pointOnCubic = ({ from, c1, c2, to }: Cubic, t: number): Point => {
-  const u = 1 - t;
-  const [a, b, c, d] = [u * u * u, 3 * u * u * t, 3 * u * t * t, t * t * t];
-  return {
-    x: a * from.x + b * c1.x + c * c2.x + d * to.x,
-    y: a * from.y + b * c1.y + c * c2.y + d * to.y,
-  };
-};
-
-export interface CurveSample extends Point {
-  /** Which curve segment the sample is on, and how far along it (0-1) */
-  segment: number;
-  t: number;
-}
-
-const STEPS_PER_SEGMENT = 24;
-
-/** Points at an even distance along the curves, starting at its beginning */
-export function sampleCurves(curves: Cubic[], spacing: number): CurveSample[] {
-  if (curves.length === 0) return [];
-
-  const samples: CurveSample[] = [{ ...curves[0].from, segment: 0, t: 0 }];
-  let previous: Point = curves[0].from;
-  let travelled = 0;
-
-  curves.forEach((curve, segment) => {
-    for (let step = 1; step <= STEPS_PER_SEGMENT; step++) {
-      const t = step / STEPS_PER_SEGMENT;
-      const point = pointOnCubic(curve, t);
-      travelled += Math.hypot(point.x - previous.x, point.y - previous.y);
-      previous = point;
-
-      if (travelled >= spacing) {
-        samples.push({ ...point, segment, t });
-        travelled -= spacing;
-      }
-    }
-  });
-
-  return samples;
-}
-
 export const smoothPath = (points: Point[], bounds?: Bounds) =>
   `M${round(points[0].x)} ${round(points[0].y)}${smoothSegments(points, bounds)}`;
 
