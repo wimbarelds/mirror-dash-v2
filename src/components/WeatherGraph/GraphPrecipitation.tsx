@@ -1,6 +1,5 @@
 import { HourPoint, isSnow } from '../../util/weather/selectors';
 import { PLOT } from './constants';
-import { useAmountStyle } from './precipitation-amount';
 import { Scale } from './types';
 import { pointOnCubic, sampleCurves, smoothCurves } from './util';
 
@@ -25,24 +24,32 @@ const RIBBON_OPACITY = 0.28;
 const colorOf = (point: HourPoint) => (isSnow(point) ? SNOW_COLOR : RAIN_COLOR);
 
 /** The ribbon is never thinner than the dots (plus 10%), and grows with the square root of the amount */
-const MAX_RIBBON = 60;
+const MAX_RIBBON = 48;
 const ribbonWidth = (mm: number) => Math.min(MAX_RIBBON, RADIUS * 2 * 1.1 + 20 * Math.sqrt(mm));
 
 /**
  * Precipitation as a dotted line. The height follows the chance (read from the right-hand axis) and
- * the colour tells rain (blue) from snow (white). The amount can be shown as the thickness of a
- * see-through ribbon along the line; see AmountStyle. By default it isn't shown.
+ * the colour tells rain (blue) from snow (white). Behind it runs a see-through ribbon whose thickness
+ * is the amount expected.
  */
 export function GraphPrecipitation({ points, x, chanceY }: Props) {
-  const style = useAmountStyle();
   const curves = smoothCurves(
     points.map((point) => ({ x: x(point.time), y: chanceY(point.precipProbability) })),
     { top: PLOT.top, bottom: PLOT.bottom },
   );
 
+  // Amounts are averaged with the hours around them, as hour-to-hour jumps make the ribbon lumpy
+  const amounts = points.map((point, i) => {
+    const [before, after] = [
+      points[Math.max(0, i - 1)],
+      points[Math.min(points.length - 1, i + 1)],
+    ];
+    return (before.precipitation + 2 * point.precipitation + after.precipitation) / 4;
+  });
+
   // The thickness follows its own smooth curve through the hourly values, so it changes gradually
   const widthCurves = smoothCurves(
-    points.map((point) => ({ x: x(point.time), y: ribbonWidth(point.precipitation) })),
+    points.map((point, i) => ({ x: x(point.time), y: ribbonWidth(amounts[i]) })),
     { top: 0, bottom: MAX_RIBBON },
   );
   const widthAt = (segment: number, t: number) => pointOnCubic(widthCurves[segment], t).y;
@@ -50,7 +57,7 @@ export function GraphPrecipitation({ points, x, chanceY }: Props) {
 
   return (
     <g>
-      {style === 'ribbon' && (
+      {
         // Overlapping round-ended pieces of different thickness make one stroke whose thickness
         // varies. They are opaque, and the group as a whole is see-through, so overlaps don't show.
         <g opacity={RIBBON_OPACITY} strokeLinecap="round">
@@ -70,7 +77,7 @@ export function GraphPrecipitation({ points, x, chanceY }: Props) {
             );
           })}
         </g>
-      )}
+      }
 
       {sampleCurves(curves, SPACING).map(({ x: cx, y: cy, segment, t }, index) => (
         <circle key={index} cx={cx} cy={cy} r={RADIUS} fill={colorOf(nearest(segment, t))} />

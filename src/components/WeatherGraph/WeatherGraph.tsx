@@ -35,9 +35,9 @@ export function WeatherGraph({ points, now }: Props) {
         <clipPath id={CLIP_ID}>
           <rect
             x={PLOT.left}
-            y={PLOT.top - 8}
+            y={PLOT.top - 26}
             width={PLOT.right - PLOT.left}
-            height={PLOT.bottom - PLOT.top + 8}
+            height={PLOT.bottom - PLOT.top + 26}
           />
         </clipPath>
       </defs>
