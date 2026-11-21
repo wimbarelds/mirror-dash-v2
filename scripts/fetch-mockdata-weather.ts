@@ -44,7 +44,7 @@ const columns = Object.fromEntries(
   VARIABLES.map((name) => [name, [] as (number | null)[]]),
 ) as Record<Variable, (number | null)[]>;
 
-for (let cursor = toDate(start); cursor <= toDate(end); ) {
+for (let cursor = toDate(start); cursor <= toDate(end);) {
   const chunkEnd = new Date(
     Math.min(cursor.getTime() + (CHUNK_DAYS - 1) * DAY, toDate(end).getTime()),
   );

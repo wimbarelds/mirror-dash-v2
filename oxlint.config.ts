@@ -1,6 +1,6 @@
-import { defineConfig } from 'oxlint';
+import type { OxlintConfig } from 'vite-plus/lint';
 
-export default defineConfig({
+export default {
   plugins: ['oxc', 'typescript', 'react', 'unicorn'],
   categories: {
     correctness: 'warn',
@@ -28,4 +28,4 @@ export default defineConfig({
       specifier: 'vite-plus/oxlint-plugin',
     },
   ],
-});
+} satisfies OxlintConfig;

@@ -63,10 +63,8 @@ function Bus({
 
   useEffect(() => {
     let delay = 60 * 60 * 1000; // 1 hour
-    if (timeLeft < 100 * 1000)
-      delay = (timeLeft % 1000) + 1; // < 100s = next second
-    else if (timeLeft < 100 * 60000)
-      delay = (timeLeft % 60000) + 1; // <100m = next minute
+    if (timeLeft < 100 * 1000) delay = (timeLeft % 1000) + 1; // < 100s = next second
+    else if (timeLeft < 100 * 60000) delay = (timeLeft % 60000) + 1; // <100m = next minute
     else delay = (timeLeft % 3600000) + 1; // >100m = next hour
 
     const timeout = setTimeout(refresh, delay);

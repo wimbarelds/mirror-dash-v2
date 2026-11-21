@@ -16,7 +16,7 @@ export function WeatherPanel() {
   const { at, setAt, setPlaying } = useMockData();
   const [exact, setExact] = useState(false);
   const [season, setSeason] = useState(() => seasonOfMonth(new Date(at).getMonth()));
-  const highlights = useMemo(getHighlights, []);
+  const highlights = useMemo(() => getHighlights(), []);
 
   const choose = (next: number) => {
     setPlaying(false);
