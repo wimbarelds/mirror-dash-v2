@@ -132,9 +132,8 @@ const mixColors = (amount: number, from: number[], to: number[]) =>
     .join('');
 
 export function temperatureToColor(temperature: number) {
-  if (temperature <= -10) return mixColors(1, colors.chilly, colors.veryCold);
-  if (temperature <= -4) return mixColors((temperature + 4) / -6, colors.chilly, colors.veryCold);
-  if (temperature <= 0) return mixColors(temperature / -4, colors.cold, colors.chilly);
+  if (temperature <= -10) return mixColors(1, colors.cold, colors.veryCold);
+  if (temperature <= 0) return mixColors(temperature / -10, colors.cold, colors.veryCold);
   if (temperature <= 15) return mixColors(temperature / 15, colors.cold, colors.warm);
   if (temperature <= 35) return mixColors((temperature - 15) / 20, colors.warm, colors.hot);
   return mixColors(1, colors.warm, colors.hot);
