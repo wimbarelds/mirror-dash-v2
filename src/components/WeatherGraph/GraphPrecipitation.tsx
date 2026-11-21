@@ -18,18 +18,19 @@ const SNOW_COLOR = '#ffffff';
 const SPACING = 14;
 const RADIUS = 3.5;
 
-/** Anything from this amount (mm per hour) counts as wet */
-const WET = 0.1;
+/** Distance between the pieces the ribbon is drawn in */
+const RIBBON_STEP = 3;
+const RIBBON_OPACITY = 0.28;
 
 const colorOf = (point: HourPoint) => (isSnow(point) ? SNOW_COLOR : RAIN_COLOR);
 
-/** Half the length of the vertical line through an hour's dot: grows with the square root of the amount */
-const halfLength = (mm: number) => Math.min(32, 5 + 10 * Math.sqrt(mm));
+/** Ribbon thickness: grows with the square root of the amount, so light rain stays visible */
+const ribbonWidth = (mm: number) => (mm < 0.02 ? 0 : Math.min(60, 7 + 20 * Math.sqrt(mm)));
 
 /**
  * Precipitation as a dotted line. The height follows the chance (read from the right-hand axis) and
- * the colour tells rain (blue) from snow (white). The amount can be shown as a vertical line through
- * the dot of each hour, like an error bar; see AmountStyle. By default it isn't shown.
+ * the colour tells rain (blue) from snow (white). The amount can be shown as the thickness of a
+ * see-through ribbon along the line; see AmountStyle. By default it isn't shown.
  */
 export function GraphPrecipitation({ points, x, chanceY }: Props) {
   const style = useAmountStyle();
@@ -38,36 +39,38 @@ export function GraphPrecipitation({ points, x, chanceY }: Props) {
     { top: PLOT.top, bottom: PLOT.bottom },
   );
 
+  const mmAt = (segment: number, t: number) =>
+    points[segment].precipitation +
+    (points[segment + 1].precipitation - points[segment].precipitation) * t;
+  const nearest = (segment: number, t: number) => points[t < 0.5 ? segment : segment + 1];
+
   return (
     <g>
-      {style !== 'none' &&
-        points.map((point) => {
-          if (point.precipitation < WET) return null;
-          const [cx, cy] = [x(point.time), chanceY(point.precipProbability)];
-          const half = halfLength(point.precipitation);
-          const [top, bottom] = [cy - half, cy + half];
-
-          return (
-            <g key={point.time} stroke={colorOf(point)} strokeWidth="1.5" strokeLinecap="round">
-              <line x1={cx} x2={cx} y1={top} y2={bottom} />
-              {style === 'caps' && (
-                <>
-                  <line x1={cx - 4} x2={cx + 4} y1={top} y2={top} />
-                  <line x1={cx - 4} x2={cx + 4} y1={bottom} y2={bottom} />
-                </>
-              )}
-            </g>
-          );
-        })}
+      {style === 'ribbon' && (
+        // Overlapping round-ended pieces of different thickness make one stroke whose thickness
+        // varies. They are opaque, and the group as a whole is see-through, so overlaps don't show.
+        <g opacity={RIBBON_OPACITY} strokeLinecap="round">
+          {sampleCurves(curves, RIBBON_STEP).map(({ x: cx, y: cy, segment, t }, index, all) => {
+            const next = all[index + 1];
+            const width = ribbonWidth(mmAt(segment, t));
+            if (!next || width === 0) return null;
+            return (
+              <line
+                key={index}
+                x1={cx}
+                y1={cy}
+                x2={next.x}
+                y2={next.y}
+                stroke={colorOf(nearest(segment, t))}
+                strokeWidth={width}
+              />
+            );
+          })}
+        </g>
+      )}
 
       {sampleCurves(curves, SPACING).map(({ x: cx, y: cy, segment, t }, index) => (
-        <circle
-          key={index}
-          cx={cx}
-          cy={cy}
-          r={RADIUS}
-          fill={colorOf(points[t < 0.5 ? segment : segment + 1])}
-        />
+        <circle key={index} cx={cx} cy={cy} r={RADIUS} fill={colorOf(nearest(segment, t))} />
       ))}
     </g>
   );
