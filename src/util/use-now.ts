@@ -2,10 +2,7 @@ import { useEffect, useReducer } from 'react';
 
 import { useDataSources } from '../data-sources';
 
-/**
- * The current time, refreshed at the start of every minute. On the mock data page it follows the simulated
- * time instead, and re-renders when that changes.
- */
+/** The current time, refreshed every minute (or on every change of a simulated clock) */
 export function useNow() {
   const { now, live } = useDataSources();
   const [ticks, tick] = useReducer((count: number) => count + 1, 0);

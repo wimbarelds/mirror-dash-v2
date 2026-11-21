@@ -12,7 +12,7 @@ interface Props {
 
 const GRADIENT_ID = 'temperature-gradient';
 
-/** The temperature at a moment, interpolated between the two surrounding hours */
+/** The temperature at a moment, between the two surrounding hours */
 function temperatureAt(points: HourPoint[], now: number) {
   const index = points.findIndex((point, i) => point.time <= now && now < points[i + 1]?.time);
   if (index === -1) return null;
@@ -30,7 +30,6 @@ export function GraphTemperature({ points, now, x, y }: Props) {
   return (
     <g>
       <defs>
-        {/* The line changes colour along with the temperature */}
         <linearGradient
           id={GRADIENT_ID}
           gradientUnits="userSpaceOnUse"

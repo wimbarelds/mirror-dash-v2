@@ -11,7 +11,7 @@ const StopSchema = z.object({
   TimingPointVisualAccessible: z.string(),
 });
 
-export const PassSchema = z.object({
+const PassSchema = z.object({
   IsTimingStop: z.boolean(),
   DestinationName50: z.string(),
   DataOwnerCode: z.string(),
@@ -49,18 +49,13 @@ export const PassSchema = z.object({
   TimingPointVisualAccessible: z.string(),
 });
 
-const GeneralMessagesSchema = z.object({});
-
-export const TimingPointSchema = z.object({
+const TimingPointSchema = z.object({
   Stop: StopSchema,
   Passes: z.record(z.string(), PassSchema),
-  GeneralMessages: GeneralMessagesSchema,
+  GeneralMessages: z.object({}),
 });
 
 export const OVDataSchema = z.record(z.string(), TimingPointSchema);
 
 export type Pass = z.infer<typeof PassSchema>;
 export type TimingPoint = z.infer<typeof TimingPointSchema>;
-
-// Example usage:
-// const data = DataSchema.parse(yourData);

@@ -1,9 +1,10 @@
 import { ChangeEvent } from 'react';
 
+import { formatTime, HOUR } from '../util/time';
 import { useMockData } from './mockdata-context';
-import { addDays, Button, HOUR, pad, Section } from './ui';
+import { addDays, Button, Section } from './ui';
 
-/** The clock the whole screen runs on: step, set the time of day, or let it run */
+/** The clock the whole screen runs on */
 export function ClockPanel() {
   const { at, setAt, playing, setPlaying } = useMockData();
   const date = new Date(at);
@@ -33,9 +34,7 @@ export function ClockPanel() {
             onChange={onTimeChange}
             className="flex-1"
           />
-          <span className="w-14 text-right tabular-nums">
-            {pad(date.getHours())}:{pad(date.getMinutes())}
-          </span>
+          <span className="w-14 text-right tabular-nums">{formatTime(at)}</span>
         </label>
       </Section>
 

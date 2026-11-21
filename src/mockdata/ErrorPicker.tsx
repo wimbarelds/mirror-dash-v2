@@ -8,7 +8,7 @@ const OPTIONS: { value: SimulatedError; label: string }[] = [
   { value: '500', label: '500' },
 ];
 
-/** Makes the requests for this part of the screen fail, to see how it copes */
+/** Makes requests for a part of the screen fail */
 export function ErrorPicker({ part }: { part: DataPart }) {
   const { errors, setError } = useMockData();
 

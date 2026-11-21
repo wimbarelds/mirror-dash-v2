@@ -9,7 +9,6 @@ import { MockDataUI } from './MockDataUI.tsx';
 
 const queryClient = new QueryClient();
 
-/** Entry point of mockdata.html: the same app, running on recorded weather and a simulated clock */
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <AppErrorBoundary>

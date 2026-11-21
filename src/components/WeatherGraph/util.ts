@@ -8,13 +8,13 @@ export const linearScale =
   (value) =>
     to0 + ((value - from0) / (from1 - from0)) * (to1 - to0);
 
-/** Vertical limits for a curve, so smoothing can't make it swing past them between two points */
+/** Vertical limits, so smoothing can't overshoot them between points */
 interface Bounds {
   top: number;
   bottom: number;
 }
 
-/** One cubic Bézier segment between two neighbouring points */
+/** A cubic Bézier segment between two neighbouring points */
 export interface Cubic {
   from: Point;
   c1: Point;
@@ -22,7 +22,7 @@ export interface Cubic {
   to: Point;
 }
 
-/** The cubic segments of a curve that passes smoothly through every point */
+/** Segments of a smooth curve through every point */
 export function smoothCurves(points: Point[], bounds?: Bounds): Cubic[] {
   const limit = (y: number) => (bounds ? Math.min(bounds.bottom, Math.max(bounds.top, y)) : y);
 
@@ -42,16 +42,6 @@ export function smoothCurves(points: Point[], bounds?: Bounds): Cubic[] {
   return curves;
 }
 
-/** Cubic curve segments (without the starting "M") that pass smoothly through every point */
-export function smoothSegments(points: Point[], bounds?: Bounds) {
-  return smoothCurves(points, bounds)
-    .map(
-      ({ c1, c2, to }) =>
-        ` C${round(c1.x)} ${round(c1.y)} ${round(c2.x)} ${round(c2.y)} ${round(to.x)} ${round(to.y)}`,
-    )
-    .join('');
-}
-
 export const pointOnCubic = ({ from, c1, c2, to }: Cubic, t: number): Point => {
   const u = 1 - t;
   const [a, b, c, d] = [u * u * u, 3 * u * u * t, 3 * u * t * t, t * t * t];
@@ -62,24 +52,21 @@ export const pointOnCubic = ({ from, c1, c2, to }: Cubic, t: number): Point => {
 };
 
 export interface CurveSample extends Point {
-  /** Which curve segment the sample is on, and how far along it (0-1) */
+  /** The curve segment, and how far along it (0-1) */
   segment: number;
   t: number;
 }
 
 const STEPS_PER_SEGMENT = 24;
 
-/**
- * Points along the curves at about the given distance from each other. Every segment gets a whole
- * number of evenly spaced points, starting exactly on the data point, so those always get a dot.
- */
+/** Evenly spaced points along the curves, with one exactly on every data point */
 export function sampleCurves(curves: Cubic[], spacing: number): CurveSample[] {
   if (curves.length === 0) return [];
 
   const samples: CurveSample[] = [];
 
   curves.forEach((curve, segment) => {
-    // Distance travelled along the curve at every step, to turn distances into positions
+    // Distance along the curve at every step
     const distances = [0];
     let previous: Point = curve.from;
     for (let step = 1; step <= STEPS_PER_SEGMENT; step++) {
@@ -105,10 +92,16 @@ export function sampleCurves(curves: Cubic[], spacing: number): CurveSample[] {
   return samples;
 }
 
-export const smoothPath = (points: Point[], bounds?: Bounds) =>
-  `M${round(points[0].x)} ${round(points[0].y)}${smoothSegments(points, bounds)}`;
+/** SVG path data for a smooth curve through every point */
+export function smoothPath(points: Point[]) {
+  const segments = smoothCurves(points).map(
+    ({ c1, c2, to }) =>
+      ` C${round(c1.x)} ${round(c1.y)} ${round(c2.x)} ${round(c2.y)} ${round(to.x)} ${round(to.y)}`,
+  );
+  return `M${round(points[0].x)} ${round(points[0].y)}${segments.join('')}`;
+}
 
-/** A temperature axis that fits the data, so a mild day doesn't turn into a flat line */
+/** An axis that fits the data, so a mild day isn't a flat line */
 export function getTemperatureAxis(values: number[]) {
   let min = Math.floor(Math.min(...values) - 1);
   let max = Math.ceil(Math.max(...values) + 1);

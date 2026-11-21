@@ -1,13 +1,13 @@
 import { createContext, useContext } from 'react';
 
-/** A failure to simulate: nothing, a CORS block, or an HTTP error */
+/** A failure to simulate */
 export type SimulatedError = 'none' | 'cors' | '404' | '500';
 
-/** The parts of the screen that get their data from somewhere else */
-export type DataPart = 'weather' | 'buses';
+/** Parts of the screen with their own data source */
+export type DataPart = 'weather' | 'busses';
 
 export interface MockDataState {
-  /** The simulated current time in ms */
+  /** Simulated time in ms */
   at: number;
   setAt: (at: number) => void;
   playing: boolean;

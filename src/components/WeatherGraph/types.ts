@@ -3,5 +3,5 @@ export interface Point {
   y: number;
 }
 
-/** Maps a value (time, temperature, percentage) to a coordinate in the graph's drawing space */
+/** Maps a value (time, temperature, percentage) to a coordinate */
 export type Scale = (value: number) => number;

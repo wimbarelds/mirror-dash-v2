@@ -9,10 +9,10 @@ interface Props {
 
 const ICE_COLOR = '#7fe3ff';
 
-/** The line sits just below the axis, so it does not cover it */
+/** The line sits just below the axis */
 const ICE_OFFSET = 8;
 
-/** Stretches of consecutive hours with a risk of slippery roads, as indexes into the points */
+/** Runs of consecutive hours with a risk of ice, as indexes into the points */
 function getRuns(points: HourPoint[]) {
   const runs: { first: number; last: number; likely: boolean }[] = [];
 
@@ -34,11 +34,11 @@ function getRuns(points: HourPoint[]) {
   return runs;
 }
 
-/** A warning triangle with an exclamation mark, centred on the given spot */
+/** A warning triangle, centred on the given spot */
 function WarningIcon({ x, y, solid }: { x: number; y: number; solid: boolean }) {
   return (
     <g transform={`translate(${x} ${y}) scale(1.2)`} opacity={solid ? 1 : 0.75} stroke="none">
-      {/* The dark outline cuts the line behind the icon */}
+      {/* The black outline cuts the line behind it */}
       <path
         d="M0 -11L12 9H-12Z"
         fill={ICE_COLOR}
@@ -53,11 +53,7 @@ function WarningIcon({ x, y, solid }: { x: number; y: number; solid: boolean }) 
   );
 }
 
-/**
- * Slippery roads, drawn just below the bottom axis over the hours concerned: a line with a warning
- * sign in the middle. The line is solid and heavy when it is likely, thin and lighter when it is
- * only possible.
- */
+/** Ice risk as a line below the axis with a warning sign: heavy when likely, thin when possible */
 export function GraphIce({ points, x }: Props) {
   if (points.length < 2) return null;
   const halfStep = (x(points[1].time) - x(points[0].time)) / 2;

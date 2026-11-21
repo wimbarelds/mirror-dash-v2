@@ -1,7 +1,7 @@
-/** The graph is drawn in this fixed coordinate space and scaled to its container by the SVG viewBox */
+/** The graph is drawn in this coordinate space, and scaled by the SVG viewBox */
 export const VIEW = { width: 1150, height: 340 };
 
-/** The framed area; the margins around it hold the axis labels */
+/** The framed area; the margins hold the axis labels */
 export const PLOT = { left: 64, right: 1086, top: 26, bottom: 290 };
 
 export const HOUR_LABEL_Y = 330;

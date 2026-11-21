@@ -2,20 +2,17 @@ import { useMemo, useState } from 'react';
 
 import { DateTimePicker } from './DateTimePicker';
 import { ErrorPicker } from './ErrorPicker';
-import { getHighlights, Season, SEASONS } from './highlights';
+import { getHighlights, seasonOf, SEASONS } from './highlights';
 import { useMockData } from './mockdata-context';
 import { Button, ButtonGroup, MONTHS, Section } from './ui';
 
-const seasonOfMonth = (month: number): Season =>
-  SEASONS[month === 11 || month <= 1 ? 0 : month <= 4 ? 1 : month <= 7 ? 2 : 3].id;
-
 const sameDay = (a: number, b: number) => new Date(a).toDateString() === new Date(b).toDateString();
 
-/** Pick the weather: a notable day in a season, or an exact date and time */
+/** Pick a notable day in a season, or an exact date and time */
 export function WeatherPanel() {
   const { at, setAt, setPlaying } = useMockData();
   const [exact, setExact] = useState(false);
-  const [season, setSeason] = useState(() => seasonOfMonth(new Date(at).getMonth()));
+  const [season, setSeason] = useState(() => seasonOf(new Date(at).getMonth()));
   const highlights = useMemo(() => getHighlights(), []);
 
   const choose = (next: number) => {

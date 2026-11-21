@@ -1,6 +1,7 @@
 import clsx from 'clsx';
 import { useMemo } from 'react';
 
+import { formatTime } from '../util/time';
 import { useNow } from '../util/use-now';
 import {
   describeIce,
@@ -12,14 +13,8 @@ import { useWeatherData } from '../util/weather/use-weather-data';
 import { getWeatherCodeInfo } from '../util/weather/weather-code-utils';
 import { IceIcon, WeatherIcon } from './WeatherIcon';
 
-/** Data older than this is shown as such, instead of passing for current */
+/** Data older than this is shown as such */
 const STALE_AFTER = 45 * 60 * 1000;
-
-const timeFormat = new Intl.DateTimeFormat(import.meta.env.VITE_LOCALE, {
-  hour: '2-digit',
-  minute: '2-digit',
-  hourCycle: 'h23',
-});
 
 export function WeatherCurrent() {
   const { data, isError, dataUpdatedAt } = useWeatherData();
@@ -71,7 +66,7 @@ export function WeatherCurrent() {
       )}
       {isStale && (
         <p className="mt-2 text-[1.375rem] text-white/40">
-          Weerdata van {timeFormat.format(dataUpdatedAt)}
+          Weerdata van {formatTime(dataUpdatedAt)}
         </p>
       )}
     </div>

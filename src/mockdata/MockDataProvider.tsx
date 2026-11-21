@@ -1,19 +1,19 @@
 import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { DataSources, DataSourcesProvider } from '../data-sources';
+import { HOUR } from '../util/time';
 import { buildBusData } from './build-bus-data';
 import { buildWeatherData } from './build-weather-data';
 import { clampAt, DAYS, timeAt } from './history';
 import { DataPart, MockDataContext, SimulatedError } from './mockdata-context';
 import { simulateError } from './simulate-error';
 
-const HOUR = 60 * 60 * 1000;
 const PLAY_INTERVAL = 700;
 
 const pad = (value: number) => String(value).padStart(2, '0');
 
-/** The format used in the URL, e.g. 2026-06-26T14:30 (local time) */
-export function formatAt(at: number) {
+/** The format used in the URL, e.g. 2025-06-26T14:30 (local time) */
+function formatAt(at: number) {
   const date = new Date(at);
   return (
     `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
@@ -28,20 +28,17 @@ function readInitialAt() {
     const [year, month, day, hour, minute] = match.slice(1).map(Number);
     return clampAt(new Date(year, month - 1, day, hour, minute).getTime());
   }
-  // The evening of the latest day that can be used
+  // The evening of the last usable day
   return clampAt(timeAt(DAYS - 2, 19).getTime() + 30 * 60 * 1000);
 }
 
-/**
- * Runs the app against recorded weather and a simulated clock. The moment being shown lives in
- * the URL (?t=2026-06-26T14:30), so any situation can be bookmarked or shared.
- */
+/** Runs the app on recorded weather and a simulated clock, kept in the URL (?t=…) */
 export function MockDataProvider({ children }: { children: ReactNode }) {
   const [at, setAtUnclamped] = useState(readInitialAt);
   const [playing, setPlaying] = useState(false);
   const [errors, setErrors] = useState<Record<DataPart, SimulatedError>>({
     weather: 'none',
-    buses: 'none',
+    busses: 'none',
   });
   const setError = useCallback(
     (part: DataPart, error: SimulatedError) =>
@@ -67,17 +64,17 @@ export function MockDataProvider({ children }: { children: ReactNode }) {
 
   const dataSources = useMemo<DataSources>(
     () => ({
-      key: `mockdata-${at}-${errors.weather}-${errors.buses}`,
+      key: `mockdata-${at}-${errors.weather}-${errors.busses}`,
       live: false,
       now: () => at,
       fetchWeather: () =>
         errors.weather === 'none'
           ? Promise.resolve(buildWeatherData(at))
           : simulateError('weather', errors.weather),
-      fetchBuses: () =>
-        errors.buses === 'none'
+      fetchBusses: () =>
+        errors.busses === 'none'
           ? Promise.resolve(buildBusData(at))
-          : simulateError('buses', errors.buses),
+          : simulateError('busses', errors.busses),
     }),
     [at, errors],
   );

@@ -2,14 +2,14 @@ import { SNOW_CODES } from './constants';
 
 export type IceRisk = 'none' | 'possible' | 'likely';
 
-/** Freezing drizzle and freezing rain: they ice up roads wherever they fall */
+/** Freezing drizzle and rain */
 const FREEZING_RAIN_CODES = new Set([56, 57, 66, 67]);
 
-/** The road is likely frozen at or below this surface temperature (°C), possibly a little above it */
+/** Surface temperatures (°C) at or below which the road is likely / possibly frozen */
 const FROZEN_SURFACE = 0;
 const NEAR_FROZEN_SURFACE = 1.5;
 
-/** Moisture counts as present when there was rain or snow in this many hours, or the air is damp */
+/** Moisture: rain or snow within this many hours, or damp air */
 const LOOKBACK_HOURS = 6;
 const DAMP_HUMIDITY = 90;
 
@@ -20,11 +20,7 @@ interface HourlyIceInput {
   relative_humidity_2m: number[];
 }
 
-/**
- * Risk of slippery roads at an hour, from the forecast. This is a rule of thumb, not a road report:
- * a (near) freezing surface with moisture on it, or freezing rain. The surface temperature is the
- * weather model's 0 cm temperature, which follows the road surface better than the air temperature.
- */
+/** Rule of thumb for slippery roads: a (near) freezing surface with moisture, or freezing rain */
 export function getIceRisk(hourly: HourlyIceInput, index: number): IceRisk {
   if (FREEZING_RAIN_CODES.has(hourly.weather_code[index])) return 'likely';
 

@@ -1,12 +1,10 @@
 #!/usr/bin/env node
 /**
- * Downloads a block of hourly weather history for the mock data page (mockdata.html).
+ * Downloads hourly weather history for the mock data page.
  *
  *   vpx scripts/fetch-mockdata-weather.ts 2024-12-31 2026-01-01
  *
- * Uses Open-Meteo's historical forecast API, which keeps the archived model forecasts. Unlike the
- * plain archive API it includes precipitation probability, which the graph needs. Times are local
- * (Europe/Amsterdam), 24 values per day.
+ * Uses Open-Meteo's historical forecast API (it has precipitation probability), in local time.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 

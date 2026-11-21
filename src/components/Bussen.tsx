@@ -3,9 +3,10 @@ import clsx from 'clsx';
 import { ReactNode, useEffect, useReducer } from 'react';
 
 import { useDataSources } from '../data-sources';
-import { FETCH_INTERVAL, FILTER_MAX_TIME_ELAPSED, MAX_BUSES } from '../util/ov/constants';
+import { FETCH_INTERVAL, FILTER_MAX_TIME_ELAPSED, MAX_BUSSES } from '../util/ov/constants';
 import { isOVCorsError } from '../util/ov/ov-cors-error';
 import { TimingPoint } from '../util/ov/schema';
+import { formatTime } from '../util/time';
 
 type BusPass = ReturnType<typeof mapBusPass>[number];
 
@@ -21,7 +22,7 @@ function mapBusPass(data: TimingPoint, now: number) {
       TargetDepartureTime: new Date(bus.TargetDepartureTime),
     }))
     .filter((item) => item.ExpectedDepartureTime.getTime() > now)
-    .slice(0, MAX_BUSES);
+    .slice(0, MAX_BUSSES);
 }
 
 function timeDiff(diff: number) {
@@ -31,15 +32,6 @@ function timeDiff(diff: number) {
   if (seconds < 100) return { value: seconds, unit: 'sec' };
   if (minutes < 100) return { value: minutes, unit: 'min' };
   return { value: hours, unit: 'uur' };
-}
-
-function formatTime(date: Date) {
-  const formatter = new Intl.DateTimeFormat(import.meta.env.VITE_LOCALE, {
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  });
-  return formatter.format(date);
 }
 
 function getRiskClass(timeLeft: number) {
@@ -58,7 +50,6 @@ function Bus({
 }: BusPass & { next: boolean }) {
   const { now } = useDataSources();
   const [, refresh] = useReducer((count: number) => count + 1, 0);
-  // Derived on every render, so it follows the clock whether time runs by itself or is set by hand
   const timeLeft = ExpectedDepartureTime.getTime() - now();
 
   useEffect(() => {
@@ -74,7 +65,6 @@ function Bus({
   if (timeLeft < FILTER_MAX_TIME_ELAPSED) return null;
 
   const riskClassName = getRiskClass(timeLeft);
-  const timeStr = formatTime(ExpectedDepartureTime);
   const remaining = timeDiff(timeLeft);
 
   return (
@@ -83,7 +73,9 @@ function Bus({
         {LinePublicNumber}
       </span>
       <span className="min-w-[10.625rem] text-[2.125rem] text-white/70">{DestinationName50}</span>
-      <span className="w-[6.875rem] text-right text-[2.125rem] text-white/55">{timeStr}</span>
+      <span className="w-[6.875rem] text-right text-[2.125rem] text-white/55">
+        {formatTime(ExpectedDepartureTime)}
+      </span>
       <span
         className={clsx(
           'w-[16.25rem] text-right',
@@ -102,7 +94,7 @@ function Message({ children }: { children: ReactNode }) {
 }
 
 export function Bussen() {
-  const { key, live, now, fetchBuses } = useDataSources();
+  const { key, live, now, fetchBusses } = useDataSources();
   const queryKey = ['ovdata', key];
   const queryClient = useQueryClient();
   const corsBlocked = isOVCorsError(queryClient.getQueryState(queryKey)?.error);
@@ -113,13 +105,13 @@ export function Bussen() {
     data: bussen,
   } = useQuery({
     queryKey,
-    queryFn: fetchBuses,
-    enabled: !corsBlocked, // Avoid retry for CORS error
+    queryFn: fetchBusses,
+    enabled: !corsBlocked,
     retry: (failureCount, error) => live && !isOVCorsError(error) && failureCount < 3,
-    refetchInterval: FETCH_INTERVAL, // 2 minuten
+    refetchInterval: FETCH_INTERVAL,
     refetchIntervalInBackground: true,
-    staleTime: FETCH_INTERVAL, // 2 minuten
-    // The mock data page switches to a new key for every moment: keep showing the previous one meanwhile
+    staleTime: FETCH_INTERVAL,
+    // Mock data changes the key for every moment; keep showing the last one meanwhile
     placeholderData: keepPreviousData,
     select: (data) => mapBusPass(data, now()),
   });

@@ -6,7 +6,7 @@ type Daily = WeatherData['daily'];
 
 const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
 
-/** The most frequent value; the highest on a tie, so the more severe weather wins */
+/** The most frequent value; the highest on a tie, as that is the more severe weather */
 function mostCommon(values: number[]) {
   const counts = new Map<number, number>();
   for (const value of values) counts.set(value, (counts.get(value) ?? 0) + 1);
@@ -26,7 +26,7 @@ function buildHourly(): Hourly {
   };
 }
 
-/** Daily figures, derived from the hours the way the weather service would report them */
+/** Daily figures derived from the hours */
 function buildDaily(): Daily {
   const daily: Daily = {
     time: [],
@@ -61,7 +61,7 @@ function buildDaily(): Daily {
 
 let shared: { hourly: Hourly; daily: Daily } | undefined;
 
-/** The same shape fetchWeatherData returns, as it would have looked at the given moment */
+/** What fetchWeatherData would have returned at the given moment */
 export function buildWeatherData(at: number): WeatherData {
   shared ??= { hourly: buildHourly(), daily: buildDaily() };
 

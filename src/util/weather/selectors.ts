@@ -1,8 +1,7 @@
+import { DAY, formatHour, HOUR } from '../time';
 import { PRECIPITATION_CODES, SNOW_CODES } from './constants';
 import { WeatherData } from './fetch-weather';
 import { getIceRisk, IceRisk } from './ice';
-
-const HOUR = 60 * 60 * 1000;
 
 export interface HourPoint {
   /** Start of the hour, in ms */
@@ -17,11 +16,10 @@ export interface HourPoint {
   ice: IceRisk;
 }
 
-/** Hours before the current hour that the graph starts at */
 const HOURS_BEFORE = 2;
 const WINDOW_LENGTH = 25;
 
-/** The hourly forecast from two hours ago until about a day ahead. Hours without data are skipped. */
+/** The hourly forecast from two hours ago until a day ahead, skipping hours without data */
 export function getHourlyWindow(data: WeatherData, now: number): HourPoint[] {
   const currentHour = new Date(now);
   currentHour.setMinutes(0, 0, 0);
@@ -58,7 +56,7 @@ export interface DaySummary {
 /** Summary of the calendar day that contains the given moment, or null if there is no data for it */
 export function getDaySummary(data: WeatherData, at: number): DaySummary | null {
   const { time, temperature_2m_max, temperature_2m_min } = data.daily;
-  const index = time.findIndex((date) => at >= date.getTime() && at < date.getTime() + 24 * HOUR);
+  const index = time.findIndex((date) => at >= date.getTime() && at < date.getTime() + DAY);
   if (index === -1) return null;
 
   return {
@@ -69,11 +67,7 @@ export function getDaySummary(data: WeatherData, at: number): DaySummary | null 
   };
 }
 
-/**
- * Whether an hour counts as wet. Some rain has to be expected: a high chance on its own, with 0 mm,
- * doesn't count. The weather code is accepted as confirmation, since its probability can dip
- * in the middle of a spell of snow or rain.
- */
+/** Whether an hour counts as wet: some rain expected, or a rain code with a decent chance */
 export function isWetHour(point: HourPoint) {
   if (point.precipitation >= 0.5) return true;
 
@@ -83,21 +77,13 @@ export function isWetHour(point: HourPoint) {
   return (some && likely) || (confirmed && (some || likely));
 }
 
-/** Chance of rain (%) from which "dry" would be misleading even when no rain is expected */
 const LIKELY_CHANCE = 60;
 
 export const isSnow = (point: HourPoint) => SNOW_CODES.has(point.weatherCode);
 
-function formatHour(time: number) {
-  return `${String(new Date(time).getHours()).padStart(2, '0')}:00`;
-}
-
 const kindOf = (point: HourPoint) => (isSnow(point) ? 'sneeuw' : 'regen');
 
-/**
- * The hour with the highest chance of rain, if it's high enough to matter. The forecast can give a
- * high chance with an expected amount of 0 mm, which "dry" would be misleading about.
- */
+/** The hour with the highest chance of rain, if high enough that "dry" would mislead */
 function findLikelyChance(points: HourPoint[]) {
   const likely = points.filter((point) => point.precipProbability >= LIKELY_CHANCE);
   if (likely.length === 0) return undefined;
@@ -144,10 +130,10 @@ export interface IceWarning {
   text: string;
 }
 
-/** Only mention slippery roads that start within this many hours; further out is too uncertain */
+/** Slippery roads further out than this are too uncertain to mention */
 const ICE_LOOKAHEAD_HOURS = 12;
 
-/** A warning for slippery roads now or soon, or null when there is none to give */
+/** A warning for slippery roads now or soon, if any */
 export function describeIce(points: HourPoint[], now: number): IceWarning | null {
   const current = points.findIndex((point) => point.time <= now && now < point.time + HOUR);
   if (current === -1) return null;

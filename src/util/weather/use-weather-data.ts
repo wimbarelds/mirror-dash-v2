@@ -12,12 +12,10 @@ export function useWeatherData() {
     queryFn: fetchWeather,
     refetchInterval: REFRESH_INTERVAL,
     refetchIntervalInBackground: true,
-    // Never throw errors into React: the app has no error boundary around the data components, so a
-    // single failed refresh used to unmount the whole page and leave a black screen. Instead, keep
-    // showing the last good data and let the next interval try again.
+    // Never throw into React (that blanks the page): keep the last good data, retry on the interval
     retry: live ? 3 : false,
     retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 60_000),
-    // The mock data page switches to a new key for every moment: keep showing the previous one meanwhile
+    // Mock data changes the key for every moment; keep showing the last one meanwhile
     placeholderData: keepPreviousData,
   });
 }

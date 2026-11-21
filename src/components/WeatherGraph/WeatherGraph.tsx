@@ -1,3 +1,4 @@
+import { formatHour } from '../../util/time';
 import { HourPoint } from '../../util/weather/selectors';
 import { HOUR_LABEL_Y, PLOT, VIEW } from './constants';
 import { GraphIce } from './GraphIce';
@@ -11,12 +12,8 @@ interface Props {
 }
 
 const CLIP_ID = 'plot-clip';
-const hourLabel = (time: number) => `${String(new Date(time).getHours()).padStart(2, '0')}:00`;
 
-/**
- * The next 24 hours in one plot: temperature (left axis) with the chance and amount of rain
- * (right axis) drawn over it. It's drawn in a fixed coordinate space and scaled by its container.
- */
+/** The next 24 hours: temperature (left axis) with chance and amount of rain (right axis) */
 export function WeatherGraph({ points, now }: Props) {
   if (points.length < 2) return null;
 
@@ -102,7 +99,7 @@ export function WeatherGraph({ points, now }: Props) {
               fill="white"
               fillOpacity=".55"
             >
-              {hourLabel(point.time)}
+              {formatHour(point.time)}
             </text>
           ),
       )}

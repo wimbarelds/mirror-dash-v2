@@ -1,8 +1,7 @@
+import { DAY } from '../util/time';
 import { useNow } from '../util/use-now';
 import { formatPrecipitation, formatTemperature, getDaySummary } from '../util/weather/selectors';
 import { useWeatherData } from '../util/weather/use-weather-data';
-
-const DAY = 24 * 60 * 60 * 1000;
 
 function getDayText(offset: number) {
   if (!offset) return 'Vandaag';

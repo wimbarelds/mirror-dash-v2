@@ -1,24 +1,7 @@
 import clsx from 'clsx';
 import { ReactNode } from 'react';
 
-export const MONTHS = [
-  'jan',
-  'feb',
-  'mrt',
-  'apr',
-  'mei',
-  'jun',
-  'jul',
-  'aug',
-  'sep',
-  'okt',
-  'nov',
-  'dec',
-];
-
-export const pad = (value: number) => String(value).padStart(2, '0');
-
-export const HOUR = 60 * 60 * 1000;
+export const MONTHS = 'jan feb mrt apr mei jun jul aug sep okt nov dec'.split(' ');
 
 export function addDays(at: number, days: number) {
   const date = new Date(at);
@@ -56,7 +39,7 @@ export function Button({
   );
 }
 
-/** Buttons joined into one block, of which one is chosen */
+/** Joined buttons, one of which is chosen */
 export function ButtonGroup<T extends string>({
   options,
   value,
@@ -66,7 +49,7 @@ export function ButtonGroup<T extends string>({
   options: { value: T; label: string }[];
   value: T;
   onChange: (value: T) => void;
-  /** Wraps into rows of this many; by default everything is on one row */
+  /** Buttons per row; by default one row */
   columns?: number;
 }) {
   return (

@@ -19,8 +19,7 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
     base: env.BASE_DIR || '/',
     build: {
       rollupOptions: {
-        // Two pages: the mirror itself, and a page with mock data for testing (mockdata.html).
-        // The recorded data is only reachable from the second one, so the mirror never loads it.
+        // The mock data page is separate, so the mirror never loads its data
         input: {
           main: resolve(process.cwd(), 'index.html'),
           mockdata: resolve(process.cwd(), 'mockdata.html'),
@@ -29,8 +28,7 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
     },
     server: {
       proxy: {
-        // Dev only: the OV API sends no CORS headers, so forward requests server-side instead.
-        // Used when VITE_OV_API_URL is set to an empty string (same-origin `/tpc/...` requests).
+        // Dev only: forwards OV requests when VITE_OV_API_URL is empty (the API sends no CORS headers)
         '/tpc': { target: 'http://v0.ovapi.nl', changeOrigin: true },
       },
     },

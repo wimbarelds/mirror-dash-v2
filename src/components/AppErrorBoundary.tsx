@@ -10,11 +10,7 @@ interface State {
   failed: boolean;
 }
 
-/**
- * Last line of defence for an unattended screen: if anything below throws while rendering, React
- * would unmount everything and leave a black page forever. Instead, reload the page after a short
- * delay so the mirror recovers on its own.
- */
+/** If rendering throws, React blanks the page for good; reload it instead */
 export class AppErrorBoundary extends Component<Props, State> {
   state: State = { failed: false };
   #timeout: ReturnType<typeof setTimeout> | undefined;

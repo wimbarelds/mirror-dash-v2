@@ -7,7 +7,7 @@ interface Position {
   y: number;
 }
 
-/** Whichever panel was used last is on top */
+/** The panel used last is on top */
 let topLayer = 50;
 
 function readPositions(): Record<string, Position> {
@@ -25,26 +25,22 @@ function savePosition(id: string, position: Position) {
       JSON.stringify({ ...readPositions(), [id]: position }),
     );
   } catch {
-    // The position just isn't remembered
+    // Not remembered, then
   }
 }
 
 interface Props {
   id: string;
   title: string;
-  /** Where the panel starts, as a share of the window, until it has been moved */
+  /** Starting position, as a share of the window */
   start: { x: number; y: number };
   /** Width in rem */
   width: number;
-  /** Called by the button in the title bar */
   onHide: () => void;
   children: ReactNode;
 }
 
-/**
- * A panel with a title bar to drag it by, and a button to hide it. Shown and hidden from the
- * toolbar too. Where it was put is remembered.
- */
+/** A panel to drag by its title bar. Its position is remembered. */
 export function MockDataPanel({ id, title, start, width, onHide, children }: Props) {
   const [position, setPosition] = useState<Position>(
     () =>
@@ -62,7 +58,7 @@ export function MockDataPanel({ id, title, start, width, onHide, children }: Pro
 
   const onPointerMove = (event: PointerEvent<HTMLElement>) => {
     if (!drag.current || !panel.current) return;
-    // Keep at least a part of the title bar on screen
+    // Keep part of the title bar on screen
     setPosition({
       x: Math.min(
         window.innerWidth - 80,

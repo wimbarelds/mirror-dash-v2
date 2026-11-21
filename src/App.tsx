@@ -4,10 +4,7 @@ import { WeatherCurrent } from './components/WeatherCurrent';
 import { WeatherDay } from './components/WeatherDay';
 import { WeatherForecast } from './components/WeatherForecast';
 
-/**
- * Anything unused stays black: the screen sits behind a two-way mirror, so black is transparent.
- * Content hugs the edges and the middle is left empty for the reflection.
- */
+/** Unused space stays black: the screen sits behind a two-way mirror */
 function App() {
   return (
     <main className="fixed inset-0 grid grid-cols-[auto_1fr] grid-rows-[auto_1fr_auto] px-18 pt-9 pb-13">

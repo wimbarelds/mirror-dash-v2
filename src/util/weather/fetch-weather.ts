@@ -10,7 +10,7 @@ const params = {
     'precipitation_probability',
     'precipitation',
     'weather_code',
-    // Used to estimate the risk of slippery roads (see ice.ts)
+    // For the ice risk
     'soil_temperature_0cm',
     'relative_humidity_2m',
   ],
@@ -24,7 +24,7 @@ const params = {
     'precipitation_probability_max',
   ],
   timezone: 'Europe/Amsterdam',
-  // The graph starts two hours in the past, which just after midnight is still yesterday
+  // The graph starts two hours back, which can be yesterday
   past_days: 1,
 } as const;
 const url = 'https://api.open-meteo.com/v1/forecast';
