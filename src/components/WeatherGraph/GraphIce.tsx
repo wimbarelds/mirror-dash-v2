@@ -9,6 +9,9 @@ interface Props {
 
 const ICE_COLOR = '#7fe3ff';
 
+/** The line sits just below the axis, so it does not cover it */
+const ICE_OFFSET = 8;
+
 /** Stretches of consecutive hours with a risk of slippery roads, as indexes into the points */
 function getRuns(points: HourPoint[]) {
   const runs: { first: number; last: number; likely: boolean }[] = [];
@@ -32,7 +35,7 @@ function getRuns(points: HourPoint[]) {
 }
 
 /**
- * Slippery roads, drawn as a thick line on the bottom axis over the hours concerned: solid and
+ * Slippery roads, drawn as a thick line just below the bottom axis over the hours concerned: solid and
  * heavy when it is likely, thin and lighter when it is only possible.
  */
 export function GraphIce({ points, x }: Props) {
@@ -46,9 +49,9 @@ export function GraphIce({ points, x }: Props) {
           key={points[first].time}
           x1={Math.max(PLOT.left, x(points[first].time) - halfStep + 4)}
           x2={Math.min(PLOT.right, x(points[last].time) + halfStep - 4)}
-          y1={PLOT.bottom}
-          y2={PLOT.bottom}
-          strokeWidth={likely ? 9 : 5}
+          y1={PLOT.bottom + ICE_OFFSET}
+          y2={PLOT.bottom + ICE_OFFSET}
+          strokeWidth={likely ? 6 : 3.5}
           strokeOpacity={likely ? 1 : 0.6}
         />
       ))}
