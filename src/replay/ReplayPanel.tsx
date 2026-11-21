@@ -36,19 +36,20 @@ interface Props {
   start: { x: number; y: number };
   /** Width in rem */
   width: number;
+  /** Called by the button in the title bar */
+  onHide: () => void;
   children: ReactNode;
 }
 
 /**
- * A panel with a title bar to drag it by, and a button to fold it up to just that bar. Shown and
- * hidden from the toolbar. Where it was put is remembered.
+ * A panel with a title bar to drag it by, and a button to hide it. Shown and hidden from the
+ * toolbar too. Where it was put is remembered.
  */
-export function ReplayPanel({ id, title, start, width, children }: Props) {
+export function ReplayPanel({ id, title, start, width, onHide, children }: Props) {
   const [position, setPosition] = useState<Position>(
     () =>
       readPositions()[id] ?? { x: start.x * window.innerWidth, y: start.y * window.innerHeight },
   );
-  const [minimized, setMinimized] = useState(false);
   const [layer, setLayer] = useState(() => ++topLayer);
   const drag = useRef<{ dx: number; dy: number } | null>(null);
   const panel = useRef<HTMLElement>(null);
@@ -94,15 +95,15 @@ export function ReplayPanel({ id, title, start, width, children }: Props) {
         <h2 className="font-medium">{title}</h2>
         <button
           type="button"
-          aria-label={minimized ? 'Uitklappen' : 'Inklappen'}
+          aria-label="Verberg"
           onPointerDown={(event) => event.stopPropagation()}
-          onClick={() => setMinimized((current) => !current)}
+          onClick={onHide}
           className="flex size-6 cursor-pointer items-center justify-center rounded hover:bg-white/20"
         >
-          {minimized ? '+' : '–'}
+          –
         </button>
       </header>
-      {!minimized && <div className="flex flex-col gap-4 p-4">{children}</div>}
+      <div className="flex flex-col gap-4 p-4">{children}</div>
     </section>
   );
 }

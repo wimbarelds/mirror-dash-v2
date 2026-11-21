@@ -29,7 +29,7 @@ const PANELS: {
 
 /**
  * The replay page's controls: a small button per part of the screen opens a panel for it. Panels
- * can be moved and folded up. The keyboard moves time: arrows an hour (with Shift a day), space
+ * can be moved and hidden again; none are open at first. The keyboard moves time: arrows an hour (with Shift a day), space
  * plays, H hides all of it.
  */
 export function ReplayUI() {
@@ -37,7 +37,7 @@ export function ReplayUI() {
   const [open, setOpen] = useState<Record<PanelId, boolean>>({
     clock: false,
     buses: false,
-    weather: true,
+    weather: false,
   });
   const [hidden, setHidden] = useState(false);
 
@@ -85,6 +85,7 @@ export function ReplayUI() {
           title={panel.title}
           start={panel.start}
           width={panel.width}
+          onHide={() => setOpen((current) => ({ ...current, [panel.id]: false }))}
         >
           {panel.content}
         </ReplayPanel>
