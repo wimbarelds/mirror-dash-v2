@@ -14,7 +14,7 @@ interface Props {
 const RAIN_COLOR = '#8fc3ff';
 const SNOW_COLOR = '#ffffff';
 
-/** Distance between the dots, and their radius when it doesn't show the amount, in drawing units */
+/** Distance between the dots, and their radius, in drawing units */
 const SPACING = 14;
 const RADIUS = 3.5;
 
@@ -23,36 +23,13 @@ const WET = 0.1;
 
 const colorOf = (point: HourPoint) => (isSnow(point) ? SNOW_COLOR : RAIN_COLOR);
 
-/** Dot radius growing with the square root of the amount, so light rain stays visible */
-const sizeRadius = (mm: number) => Math.min(9, 2.5 + 4 * Math.sqrt(mm));
-
-/** Dot radius in three steps: light, moderate and heavy */
-const stepRadius = (mm: number) => (mm < 0.5 ? 2.5 : mm < 2 ? 4.5 : 7);
-
-/** Bars along the bottom, one per hour: how tall the bar for this amount is */
-const barHeight = (mm: number) => Math.min(80, 24 * Math.sqrt(mm));
-
-const formatMm = (mm: number) => `${mm < 10 ? mm.toFixed(1).replace('.', ',') : Math.round(mm)} mm`;
-
-/** The hour with the most precipitation of every spell of wet hours */
-function spellPeaks(points: HourPoint[]) {
-  const peaks: HourPoint[] = [];
-  let peak: HourPoint | undefined;
-  for (const point of [...points, undefined]) {
-    if (point && point.precipitation >= WET) {
-      if (!peak || point.precipitation > peak.precipitation) peak = point;
-    } else if (peak) {
-      peaks.push(peak);
-      peak = undefined;
-    }
-  }
-  return peaks;
-}
+/** Half the length of the vertical line through an hour's dot: grows with the square root of the amount */
+const halfLength = (mm: number) => Math.min(44, 8 + 14 * Math.sqrt(mm));
 
 /**
  * Precipitation as a dotted line. The height follows the chance (read from the right-hand axis) and
- * the colour tells rain (blue) from snow (white). The amount can be shown in a few ways, see
- * AmountStyle; by default it isn't.
+ * the colour tells rain (blue) from snow (white). The amount can be shown as a vertical line through
+ * the dot of each hour, like an error bar; see AmountStyle. By default it isn't shown.
  */
 export function GraphPrecipitation({ points, x, chanceY }: Props) {
   const style = useAmountStyle();
@@ -60,53 +37,38 @@ export function GraphPrecipitation({ points, x, chanceY }: Props) {
     points.map((point) => ({ x: x(point.time), y: chanceY(point.precipProbability) })),
     { top: PLOT.top, bottom: PLOT.bottom },
   );
-  const barWidth = ((PLOT.right - PLOT.left) / Math.max(1, points.length - 1)) * 0.55;
 
   return (
     <g>
-      {style === 'bars' &&
-        points.map(
-          (point) =>
-            point.precipitation >= WET && (
-              <rect
-                key={point.time}
-                x={x(point.time) - barWidth / 2}
-                y={PLOT.bottom - 6 - barHeight(point.precipitation)}
-                width={barWidth}
-                height={barHeight(point.precipitation)}
-                rx="3"
-                fill={colorOf(point)}
-                fillOpacity=".4"
-              />
-            ),
-        )}
+      {style !== 'none' &&
+        points.map((point) => {
+          if (point.precipitation < WET) return null;
+          const [cx, cy] = [x(point.time), chanceY(point.precipProbability)];
+          const half = halfLength(point.precipitation);
+          const [top, bottom] = [cy - half, cy + half];
 
-      {sampleCurves(curves, SPACING).map(({ x: cx, y: cy, segment, t }, index) => {
-        const nearest = points[t < 0.5 ? segment : segment + 1];
-        const mm =
-          points[segment].precipitation +
-          (points[segment + 1].precipitation - points[segment].precipitation) * t;
+          return (
+            <g key={point.time} stroke={colorOf(point)} strokeWidth="2.5" strokeLinecap="round">
+              <line x1={cx} x2={cx} y1={top} y2={bottom} />
+              {style === 'caps' && (
+                <>
+                  <line x1={cx - 6} x2={cx + 6} y1={top} y2={top} />
+                  <line x1={cx - 6} x2={cx + 6} y1={bottom} y2={bottom} />
+                </>
+              )}
+            </g>
+          );
+        })}
 
-        let r = RADIUS;
-        if (style === 'size') r = sizeRadius(mm);
-        if (style === 'steps') r = stepRadius(mm);
-
-        return <circle key={index} cx={cx} cy={cy} r={r} fill={colorOf(nearest)} />;
-      })}
-
-      {style === 'labels' &&
-        spellPeaks(points).map((point) => (
-          <text
-            key={point.time}
-            x={x(point.time)}
-            y={Math.max(PLOT.top + 18, chanceY(point.precipProbability) - 16)}
-            fontSize="20"
-            textAnchor="middle"
-            fill={colorOf(point)}
-          >
-            {formatMm(point.precipitation)}
-          </text>
-        ))}
+      {sampleCurves(curves, SPACING).map(({ x: cx, y: cy, segment, t }, index) => (
+        <circle
+          key={index}
+          cx={cx}
+          cy={cy}
+          r={RADIUS}
+          fill={colorOf(points[t < 0.5 ? segment : segment + 1])}
+        />
+      ))}
     </g>
   );
 }

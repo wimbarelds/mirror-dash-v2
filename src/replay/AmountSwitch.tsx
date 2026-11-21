@@ -5,10 +5,8 @@ import { AmountStyle, AmountStyleContext } from '../components/WeatherGraph/prec
 
 const OPTIONS: { value: AmountStyle; label: string }[] = [
   { value: 'none', label: 'Geen' },
-  { value: 'size', label: 'Stipgrootte' },
-  { value: 'steps', label: '3 maten' },
-  { value: 'bars', label: 'Staafjes' },
-  { value: 'labels', label: 'Hoeveelheid' },
+  { value: 'caps', label: 'Streepje met dopjes' },
+  { value: 'line', label: 'Streepje' },
 ];
 
 /**
