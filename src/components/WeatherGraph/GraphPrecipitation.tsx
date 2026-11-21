@@ -39,7 +39,7 @@ const SPACING = 1.06;
  * Particles are drawn at this share of the size they are given room for. The room stays the same, so
  * the number and places of the particles don't change; they just sit less crowded.
  */
-const DRAW_SCALE = 0.75;
+const DRAW_SCALE = 0.62;
 
 /** Hours with precipitation, or a chance big enough to be worth drawing */
 const isRainy = (point: HourPoint) => point.precipProbability >= 25 || point.precipitation >= 0.1;
@@ -158,8 +158,8 @@ const DROP_CONTROL: [number, number][] = [
 ];
 
 type Point2 = [number, number];
-/** A shape is a set of lines in a space where it has a radius of about 1; closed ones are outlines */
-type Shape = { points: Point2[]; closed?: boolean }[];
+/** A shape is a set of lines in a space where it has a radius of about 1 */
+type Shape = { points: Point2[] }[];
 
 const turn = ([x, y]: Point2, degrees: number): Point2 => {
   const angle = (degrees * Math.PI) / 180;
@@ -175,7 +175,7 @@ const sixFold = (arm: Point2[][]): Shape =>
 /**
  * Snowflakes get a shape that suits their size, like the forms real crystals take: the smallest are
  * plain specks (not in this list), then a simple asterisk, a star with small chevrons at the tips,
- * and the largest are detailed crystals: a branched dendrite or a hexagonal plate.
+ * and the largest are detailed, branched crystals (two variants).
  */
 const ASTERISK: Shape = sixFold([
   [
@@ -224,30 +224,31 @@ const DENDRITE: Shape = sixFold([
   ...branch(0.74, 0.18),
 ]);
 
-const PLATE: Shape = [
-  {
-    points: [0, 1, 2, 3, 4, 5].map((corner) => turn([0, -0.95], corner * 60)),
-    closed: true,
-  },
-  ...sixFold([
-    [
-      [0, -0.5],
-      [0, 0.5],
-    ],
-  ]),
-];
+/** A finer crystal: more, shorter branches along each arm */
+const FERN: Shape = sixFold([
+  [
+    [0, -1],
+    [0, 1],
+  ],
+  ...branch(0.3, 0.14),
+  ...branch(0.55, 0.14),
+  ...branch(0.8, 0.11),
+]);
 
-/** Below these drawn radii a flake is a speck, an asterisk, a star; from the last one up it is a crystal */
-const SPECK_BELOW = 2.6;
-const ASTERISK_BELOW = 3.6;
-const STAR_BELOW = 4.8;
-/** Raindrops that small are too small to show their shape, and become dots */
-const DROP_SPECK_BELOW = 2;
+/**
+ * Below these radii (the room a particle is given, before it is drawn smaller) a flake is a speck, an
+ * asterisk, a star; from the last one up it is a crystal. Raindrops below the last one are too small
+ * to show their shape, and become dots.
+ */
+const SPECK_BELOW = 3.5;
+const ASTERISK_BELOW = 4.8;
+const STAR_BELOW = 6.4;
+const DROP_SPECK_BELOW = 2.7;
 
 function flakeShape(radius: number, random: () => number): Shape {
   if (radius < ASTERISK_BELOW) return ASTERISK;
   if (radius < STAR_BELOW) return STAR;
-  return random() < 0.5 ? DENDRITE : PLATE;
+  return random() < 0.5 ? DENDRITE : FERN;
 }
 
 /** Moves, scales and turns a point of a particle into its place in the graph */
@@ -271,11 +272,7 @@ function dropPath(x: number, y: number, radius: number, degrees: number) {
 function flakePath(x: number, y: number, radius: number, degrees: number, shape: Shape) {
   const p = placer(x, y, radius, degrees);
   return shape
-    .map(
-      ({ points, closed }) =>
-        points.map((point, i) => `${i === 0 ? 'M' : 'L'}${p(point)}`).join('') +
-        (closed ? 'Z' : ''),
-    )
+    .map(({ points }) => points.map((point, i) => `${i === 0 ? 'M' : 'L'}${p(point)}`).join(''))
     .join('');
 }
 
@@ -356,11 +353,12 @@ function layOut(points: HourPoint[], x: Scale, chanceY: Scale): Layout {
       const key = cellKey(Math.floor(px / CELL), Math.floor(py / CELL));
       grid.set(key, [...(grid.get(key) ?? []), index]);
 
+      // The kind of particle follows the room it has; how big it is drawn is a separate choice
       const drawn = radius * DRAW_SCALE;
       if (isSnow(sample.nearest)) {
-        if (drawn < SPECK_BELOW) specks += speckPath(px, py, drawn * 0.7);
-        else flakes += flakePath(px, py, drawn, random() * 60, flakeShape(drawn, random));
-      } else if (drawn < DROP_SPECK_BELOW) {
+        if (radius < SPECK_BELOW) specks += speckPath(px, py, drawn * 0.7);
+        else flakes += flakePath(px, py, drawn, random() * 60, flakeShape(radius, random));
+      } else if (radius < DROP_SPECK_BELOW) {
         drops += speckPath(px, py, drawn * 0.75);
       } else {
         drops += dropPath(px, py, drawn, 6 + random() * 14);
@@ -405,7 +403,7 @@ export function GraphPrecipitation({ points, x, chanceY }: Props) {
         d={flakes}
         fill="none"
         stroke={SNOW_COLOR}
-        strokeWidth="1.2"
+        strokeWidth="1.1"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
