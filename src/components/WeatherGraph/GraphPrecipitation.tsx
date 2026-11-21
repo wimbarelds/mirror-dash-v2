@@ -53,6 +53,8 @@ export function GraphPrecipitation({ points, x, chanceY }: Props) {
     { top: 0, bottom: MAX_RIBBON },
   );
   const widthAt = (segment: number, t: number) => pointOnCubic(widthCurves[segment], t).y;
+  /** Where the chance is 0% the line lies on the axis, and nothing is drawn */
+  const isDry = (y: number) => y > PLOT.bottom - 0.5;
   const nearest = (segment: number, t: number) => points[t < 0.5 ? segment : segment + 1];
 
   return (
@@ -63,7 +65,7 @@ export function GraphPrecipitation({ points, x, chanceY }: Props) {
         <g opacity={RIBBON_OPACITY} strokeLinecap="round">
           {sampleCurves(curves, RIBBON_STEP).map(({ x: cx, y: cy, segment, t }, index, all) => {
             const next = all[index + 1];
-            if (!next) return null;
+            if (!next || (isDry(cy) && isDry(next.y))) return null;
             return (
               <line
                 key={index}
@@ -79,9 +81,11 @@ export function GraphPrecipitation({ points, x, chanceY }: Props) {
         </g>
       }
 
-      {sampleCurves(curves, SPACING).map(({ x: cx, y: cy, segment, t }, index) => (
-        <circle key={index} cx={cx} cy={cy} r={RADIUS} fill={colorOf(nearest(segment, t))} />
-      ))}
+      {sampleCurves(curves, SPACING).map(({ x: cx, y: cy, segment, t }, index) =>
+        isDry(cy) ? null : (
+          <circle key={index} cx={cx} cy={cy} r={RADIUS} fill={colorOf(nearest(segment, t))} />
+        ),
+      )}
     </g>
   );
 }
