@@ -2,7 +2,7 @@ import { HourPoint, isSnow } from '../../util/weather/selectors';
 import { PLOT } from './constants';
 import { useAmountStyle } from './precipitation-amount';
 import { Scale } from './types';
-import { sampleCurves, smoothCurves } from './util';
+import { pointOnCubic, sampleCurves, smoothCurves } from './util';
 
 interface Props {
   points: HourPoint[];
@@ -24,8 +24,9 @@ const RIBBON_OPACITY = 0.28;
 
 const colorOf = (point: HourPoint) => (isSnow(point) ? SNOW_COLOR : RAIN_COLOR);
 
-/** Ribbon thickness: grows with the square root of the amount, so light rain stays visible */
-const ribbonWidth = (mm: number) => (mm < 0.02 ? 0 : Math.min(60, 7 + 20 * Math.sqrt(mm)));
+/** The ribbon is never thinner than the dots (plus 10%), and grows with the square root of the amount */
+const MAX_RIBBON = 60;
+const ribbonWidth = (mm: number) => Math.min(MAX_RIBBON, RADIUS * 2 * 1.1 + 20 * Math.sqrt(mm));
 
 /**
  * Precipitation as a dotted line. The height follows the chance (read from the right-hand axis) and
@@ -39,9 +40,12 @@ export function GraphPrecipitation({ points, x, chanceY }: Props) {
     { top: PLOT.top, bottom: PLOT.bottom },
   );
 
-  const mmAt = (segment: number, t: number) =>
-    points[segment].precipitation +
-    (points[segment + 1].precipitation - points[segment].precipitation) * t;
+  // The thickness follows its own smooth curve through the hourly values, so it changes gradually
+  const widthCurves = smoothCurves(
+    points.map((point) => ({ x: x(point.time), y: ribbonWidth(point.precipitation) })),
+    { top: 0, bottom: MAX_RIBBON },
+  );
+  const widthAt = (segment: number, t: number) => pointOnCubic(widthCurves[segment], t).y;
   const nearest = (segment: number, t: number) => points[t < 0.5 ? segment : segment + 1];
 
   return (
@@ -52,8 +56,7 @@ export function GraphPrecipitation({ points, x, chanceY }: Props) {
         <g opacity={RIBBON_OPACITY} strokeLinecap="round">
           {sampleCurves(curves, RIBBON_STEP).map(({ x: cx, y: cy, segment, t }, index, all) => {
             const next = all[index + 1];
-            const width = ribbonWidth(mmAt(segment, t));
-            if (!next || width === 0) return null;
+            if (!next) return null;
             return (
               <line
                 key={index}
@@ -62,7 +65,7 @@ export function GraphPrecipitation({ points, x, chanceY }: Props) {
                 x2={next.x}
                 y2={next.y}
                 stroke={colorOf(nearest(segment, t))}
-                strokeWidth={width}
+                strokeWidth={widthAt(segment, t)}
               />
             );
           })}

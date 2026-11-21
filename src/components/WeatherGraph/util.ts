@@ -52,7 +52,7 @@ export function smoothSegments(points: Point[], bounds?: Bounds) {
     .join('');
 }
 
-const pointOnCubic = ({ from, c1, c2, to }: Cubic, t: number): Point => {
+export const pointOnCubic = ({ from, c1, c2, to }: Cubic, t: number): Point => {
   const u = 1 - t;
   const [a, b, c, d] = [u * u * u, 3 * u * u * t, 3 * u * t * t, t * t * t];
   return {
