@@ -15,7 +15,7 @@ const SNOW_COLOR = '#ffffff';
 
 /** Distance between the dots, and their radius, in drawing units */
 const SPACING = 14;
-const RADIUS = 3.5;
+const RADIUS = 2.6;
 
 /** Distance between the pieces the ribbon is drawn in */
 const RIBBON_STEP = 3;
