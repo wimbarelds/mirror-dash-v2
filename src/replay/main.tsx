@@ -4,8 +4,6 @@ import ReactDOM from 'react-dom/client';
 
 import App from '../App.tsx';
 import { AppErrorBoundary } from '../components/AppErrorBoundary.tsx';
-import { ParticleControls } from './ParticleControls.tsx';
-import { ParticleSettingsProvider } from './ParticleSettingsProvider.tsx';
 import { ReplayControls } from './ReplayControls.tsx';
 import { ReplayProvider } from './ReplayProvider.tsx';
 
@@ -16,13 +14,10 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <AppErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <ParticleSettingsProvider>
-          <ReplayProvider>
-            <App />
-            <ReplayControls />
-            <ParticleControls />
-          </ReplayProvider>
-        </ParticleSettingsProvider>
+        <ReplayProvider>
+          <App />
+          <ReplayControls />
+        </ReplayProvider>
       </QueryClientProvider>
     </AppErrorBoundary>
   </React.StrictMode>,
