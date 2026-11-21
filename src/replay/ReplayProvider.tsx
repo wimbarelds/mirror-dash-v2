@@ -4,7 +4,8 @@ import { DataSources, DataSourcesProvider } from '../data-sources';
 import { buildBusData } from './build-bus-data';
 import { buildWeatherData } from './build-weather-data';
 import { clampAt, DAYS, timeAt } from './history';
-import { ReplayContext } from './replay-context';
+import { DataPart, ReplayContext, SimulatedError } from './replay-context';
+import { simulateError } from './simulate-error';
 
 const HOUR = 60 * 60 * 1000;
 const PLAY_INTERVAL = 700;
@@ -38,6 +39,15 @@ function readInitialAt() {
 export function ReplayProvider({ children }: { children: ReactNode }) {
   const [at, setAtUnclamped] = useState(readInitialAt);
   const [playing, setPlaying] = useState(false);
+  const [errors, setErrors] = useState<Record<DataPart, SimulatedError>>({
+    weather: 'none',
+    buses: 'none',
+  });
+  const setError = useCallback(
+    (part: DataPart, error: SimulatedError) =>
+      setErrors((current) => ({ ...current, [part]: error })),
+    [],
+  );
   const setAt = useCallback((next: number) => setAtUnclamped(clampAt(next)), []);
 
   useEffect(() => {
@@ -57,16 +67,25 @@ export function ReplayProvider({ children }: { children: ReactNode }) {
 
   const dataSources = useMemo<DataSources>(
     () => ({
-      key: `replay-${at}`,
+      key: `replay-${at}-${errors.weather}-${errors.buses}`,
       live: false,
       now: () => at,
-      fetchWeather: () => Promise.resolve(buildWeatherData(at)),
-      fetchBuses: () => Promise.resolve(buildBusData(at)),
+      fetchWeather: () =>
+        errors.weather === 'none'
+          ? Promise.resolve(buildWeatherData(at))
+          : simulateError('weather', errors.weather),
+      fetchBuses: () =>
+        errors.buses === 'none'
+          ? Promise.resolve(buildBusData(at))
+          : simulateError('buses', errors.buses),
     }),
-    [at],
+    [at, errors],
   );
 
-  const replay = useMemo(() => ({ at, setAt, playing, setPlaying }), [at, setAt, playing]);
+  const replay = useMemo(
+    () => ({ at, setAt, playing, setPlaying, errors, setError }),
+    [at, setAt, playing, errors, setError],
+  );
 
   return (
     <ReplayContext.Provider value={replay}>

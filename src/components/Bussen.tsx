@@ -104,7 +104,7 @@ function Message({ children }: { children: ReactNode }) {
 }
 
 export function Bussen() {
-  const { key, now, fetchBuses } = useDataSources();
+  const { key, live, now, fetchBuses } = useDataSources();
   const queryKey = ['ovdata', key];
   const queryClient = useQueryClient();
   const corsBlocked = isOVCorsError(queryClient.getQueryState(queryKey)?.error);
@@ -117,7 +117,7 @@ export function Bussen() {
     queryKey,
     queryFn: fetchBuses,
     enabled: !corsBlocked, // Avoid retry for CORS error
-    retry: (failureCount, error) => !isOVCorsError(error) && failureCount < 3,
+    retry: (failureCount, error) => live && !isOVCorsError(error) && failureCount < 3,
     refetchInterval: FETCH_INTERVAL, // 2 minuten
     refetchIntervalInBackground: true,
     staleTime: FETCH_INTERVAL, // 2 minuten

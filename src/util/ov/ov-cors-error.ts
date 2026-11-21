@@ -1,7 +1,7 @@
 /**
  * Thrown when the OV API is reachable but the browser refuses to hand us its response because of CORS.
  */
-class OVCorsError extends Error {
+export class OVCorsError extends Error {
   readonly cause: unknown;
 
   constructor(cause?: unknown) {

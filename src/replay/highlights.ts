@@ -29,6 +29,8 @@ interface DayStats {
   firstDrizzle: number;
   rainChanges: number;
   iceHours: number;
+  wetHours: number;
+  cloudyHours: number;
   firstIce: number;
 }
 
@@ -51,6 +53,8 @@ function getDayStats(day: number): DayStats {
     firstDrizzle: 0,
     rainChanges: 0,
     iceHours: 0,
+    wetHours: 0,
+    cloudyHours: 0,
     firstIce: 0,
   };
 
@@ -70,6 +74,8 @@ function getDayStats(day: number): DayStats {
     if (FOG.has(code) && stats.fogHours++ === 0) stats.firstFog = hour;
     if (DRIZZLE.has(code) && stats.drizzleHours++ === 0) stats.firstDrizzle = hour;
     if (code === 0) stats.clearHours++;
+    if (code === 3) stats.cloudyHours++;
+    if (precipitation >= 0.1) stats.wetHours++;
     if (getIceRisk(history, i) === 'likely' && stats.iceHours++ === 0) stats.firstIce = hour;
     if (hour > 0 && precipitation >= 0.1 !== history.precipitation[i - 1] >= 0.1) {
       stats.rainChanges++;
@@ -85,44 +91,120 @@ function pick(days: DayStats[], score: (stats: DayStats) => number) {
 /** The hours before an event are shown too, so start a little ahead of it */
 const before = (day: number, hour: number) => timeAt(day, Math.max(0, hour - 1)).getTime();
 
-let cached: Highlight[] | undefined;
+export type Season = 'winter' | 'spring' | 'summer' | 'autumn';
 
-/** Days worth looking at, found by scanning the dataset: the extremes and the awkward cases */
-export function getHighlights(): Highlight[] {
+export const SEASONS: { id: Season; label: string; months: string }[] = [
+  { id: 'winter', label: 'Winter', months: 'dec – feb' },
+  { id: 'spring', label: 'Lente', months: 'mrt – mei' },
+  { id: 'summer', label: 'Zomer', months: 'jun – aug' },
+  { id: 'autumn', label: 'Herfst', months: 'sep – nov' },
+];
+
+/** Meteorological seasons, as that is how the weather groups itself */
+const seasonOf = (month: number): Season =>
+  month === 11 || month <= 1 ? 'winter' : month <= 4 ? 'spring' : month <= 7 ? 'summer' : 'autumn';
+
+/** What is worth showing: a label, which day scores highest, and whether the best one is any good */
+interface Category {
+  label: string;
+  score: (stats: DayStats) => number;
+  /** The best day of a season is only offered when it qualifies */
+  qualifies: (stats: DayStats) => boolean;
+  /** The hour to start at, so the interesting part is in the graph */
+  hour: (stats: DayStats) => number;
+}
+
+const CATEGORIES: Category[] = [
+  { label: 'Warmste dag', score: (d) => d.max, qualifies: () => true, hour: (d) => d.maxHour },
+  { label: 'Koudste dag', score: (d) => -d.min, qualifies: () => true, hour: (d) => d.minHour },
+  {
+    label: 'Zonnig en droog',
+    score: (d) => (d.rain === 0 ? d.clearHours : -1),
+    qualifies: (d) => d.rain === 0 && d.clearHours >= 8,
+    hour: () => 12,
+  },
+  {
+    label: 'Grijs en droog',
+    score: (d) => (d.rain === 0 ? d.cloudyHours : -1),
+    qualifies: (d) => d.rain === 0 && d.cloudyHours >= 16,
+    hour: () => 12,
+  },
+  { label: 'Natste dag', score: (d) => d.rain, qualifies: (d) => d.rain >= 2, hour: () => 6 },
+  {
+    label: 'Hevigste bui',
+    score: (d) => d.rainiestHourAmount,
+    qualifies: (d) => d.rainiestHourAmount >= 2,
+    hour: (d) => d.rainiestHour,
+  },
+  {
+    label: 'Lange regen',
+    score: (d) => d.wetHours,
+    qualifies: (d) => d.wetHours >= 8,
+    hour: () => 6,
+  },
+  {
+    label: 'Wisselvallig',
+    score: (d) => d.rainChanges,
+    qualifies: (d) => d.rainChanges >= 3,
+    hour: () => 8,
+  },
+  {
+    label: 'Motregen',
+    score: (d) => d.drizzleHours,
+    qualifies: (d) => d.drizzleHours >= 3,
+    hour: (d) => d.firstDrizzle,
+  },
+  {
+    label: 'Mist',
+    score: (d) => d.fogHours,
+    qualifies: (d) => d.fogHours >= 3,
+    hour: (d) => d.firstFog,
+  },
+  {
+    label: 'Sneeuw',
+    score: (d) => d.snowHours,
+    qualifies: (d) => d.snowHours >= 3,
+    hour: (d) => d.firstSnow,
+  },
+  {
+    label: 'Heldere vorst',
+    score: (d) => (d.clearHours >= 8 ? -d.min : -99),
+    qualifies: (d) => d.min < -1 && d.clearHours >= 8,
+    hour: () => 18,
+  },
+  {
+    label: 'Gladheid',
+    score: (d) => d.iceHours,
+    qualifies: (d) => d.iceHours >= 2,
+    hour: (d) => d.firstIce,
+  },
+];
+
+let cached: Record<Season, Highlight[]> | undefined;
+
+/**
+ * Notable days per season, found by scanning the dataset: the extremes and the awkward cases. Only
+ * what actually happened in a season is offered, so summer has no snow.
+ */
+export function getHighlights(): Record<Season, Highlight[]> {
   if (cached) return cached;
 
   // The first and last day can't be "today" (see FIRST_AT/LAST_AT in history.ts)
-  const days = Array.from({ length: DAYS - 2 }, (_, i) => getDayStats(i + 1));
-  const hot = pick(days, (d) => d.max);
-  const cold = pick(days, (d) => -d.min);
-  const wet = pick(days, (d) => d.rain);
-  const downpour = pick(days, (d) => d.rainiestHourAmount);
-  const snow = pick(days, (d) => d.snowHours);
-  const fog = pick(days, (d) => d.fogHours);
-  const drizzle = pick(days, (d) => d.drizzleHours);
-  const changeable = pick(days, (d) => d.rainChanges);
-  const icy = pick(days, (d) => d.iceHours);
-  const frost = pick(
-    days.filter((d) => d.min < -2 && d.clearHours >= 8),
-    (d) => -d.min,
-  );
-  const dry = pick(
-    days.filter((d) => d.rain === 0),
-    (d) => d.clearHours,
-  );
+  const bySeason: Record<Season, DayStats[]> = { winter: [], spring: [], summer: [], autumn: [] };
+  for (let day = 1; day < DAYS - 1; day++) {
+    bySeason[seasonOf(timeAt(day).getMonth())].push(getDayStats(day));
+  }
 
-  cached = [
-    { label: 'Warmste dag', at: before(hot.day, hot.maxHour) },
-    { label: 'Koudste dag', at: before(cold.day, cold.minHour) },
-    { label: 'Natste dag', at: before(wet.day, 6) },
-    { label: 'Hevigste bui', at: before(downpour.day, downpour.rainiestHour) },
-    { label: 'Wisselvallig', at: before(changeable.day, 8) },
-    { label: 'Motregen', at: before(drizzle.day, drizzle.firstDrizzle) },
-    { label: 'Sneeuw', at: before(snow.day, snow.firstSnow) },
-    { label: 'Mist', at: before(fog.day, fog.firstFog) },
-    { label: 'Heldere vorst', at: before(frost.day, 18) },
-    { label: 'Gladheid', at: before(icy.day, icy.firstIce) },
-    { label: 'Zonnig en droog', at: before(dry.day, 12) },
-  ];
+  const result = {} as Record<Season, Highlight[]>;
+  for (const { id } of SEASONS) {
+    const days = bySeason[id];
+    result[id] = CATEGORIES.flatMap((category) => {
+      const best = pick(days, category.score);
+      if (!category.qualifies(best)) return [];
+      return [{ label: category.label, at: before(best.day, category.hour(best)) }];
+    });
+  }
+
+  cached = result;
   return cached;
 }

@@ -1,7 +1,7 @@
 /**
  * Downloads a block of hourly weather history for the replay page (replay.html).
  *
- *   node scripts/fetch-replay-weather.mjs 2025-11-17 2026-11-18
+ *   node scripts/fetch-replay-weather.mjs 2024-12-31 2026-01-01
  *
  * Uses Open-Meteo's historical forecast API, which keeps the archived model forecasts. Unlike the
  * plain archive API it includes precipitation probability, which the graph needs. Times are local

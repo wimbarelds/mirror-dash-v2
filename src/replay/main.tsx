@@ -4,8 +4,8 @@ import ReactDOM from 'react-dom/client';
 
 import App from '../App.tsx';
 import { AppErrorBoundary } from '../components/AppErrorBoundary.tsx';
-import { ReplayControls } from './ReplayControls.tsx';
 import { ReplayProvider } from './ReplayProvider.tsx';
+import { ReplayUI } from './ReplayUI.tsx';
 
 const queryClient = new QueryClient();
 
@@ -16,7 +16,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <QueryClientProvider client={queryClient}>
         <ReplayProvider>
           <App />
-          <ReplayControls />
+          <ReplayUI />
         </ReplayProvider>
       </QueryClientProvider>
     </AppErrorBoundary>
