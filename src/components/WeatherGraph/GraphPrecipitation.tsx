@@ -1,5 +1,6 @@
 import { HourPoint, isSnow } from '../../util/weather/selectors';
 import { PLOT } from './constants';
+import { PrecipitationConfig, usePrecipitationConfig } from './precipitation-config';
 import { Scale } from './types';
 import { smoothCurves } from './util';
 
@@ -10,45 +11,29 @@ interface Props {
   chanceY: Scale;
 }
 
-const RAIN_COLOR = '#8fc3ff';
-const SNOW_COLOR = '#ffffff';
+/** The number of particle sizes, from the largest down to the smallest */
+const SIZE_CLASSES = 6;
 
-/** A barely visible tint behind the particles, so the shape of the stroke still reads. 0 switches it off. */
-const BACKGROUND_OPACITY = 0.05;
+/** The sizes (as a radius in drawing units) the stroke is filled with, largest first */
+const getSizes = ({ largestSize, smallestSize }: PrecipitationConfig) =>
+  Array.from(
+    { length: SIZE_CLASSES },
+    (_, i) => largestSize * (smallestSize / largestSize) ** (i / (SIZE_CLASSES - 1)),
+  );
+
+/** Hours with precipitation, or a chance big enough to be worth drawing */
+const isRainy = (point: HourPoint, config: PrecipitationConfig) =>
+  point.precipProbability >= config.minChance || point.precipitation >= 0.1;
 
 /**
  * Width of the stroke, measured across it: a minimum for any hour with precipitation to show, growing
  * with the square root of the amount so light rain stays visible, up to a limit. In drawing units.
  */
-const MIN_THICKNESS = 16;
-const THICKNESS_PER_ROOT_MM = 26;
-const MAX_THICKNESS = 68;
-
-/**
- * The particles (raindrops and snowflakes) come in a range of sizes, as a radius in drawing units. The
- * stroke is filled from the largest to the smallest so the sizes mix. How big a particle may be
- * depends on how wide the stroke is where it sits: a thin stroke only gets small particles.
- */
-const SIZES = [8, 6.5, 5.2, 4.2, 3.4, 2.7];
-const MAX_SIZE_SHARE_OF_WIDTH = 0.3;
-const EDGE_MARGIN = 1.5;
-/** How much room particles keep around each other, as a factor on their radii added together */
-const SPACING = 1.06;
-
-/**
- * Particles are drawn at this share of the size they are given room for. The room stays the same, so
- * the number and places of the particles don't change; they just sit less crowded.
- */
-const DRAW_SCALE = 0.62;
-
-/** Hours with precipitation, or a chance big enough to be worth drawing */
-const isRainy = (point: HourPoint) => point.precipProbability >= 25 || point.precipitation >= 0.1;
-
-const getThickness = (point: HourPoint) =>
-  isRainy(point)
+const getThickness = (point: HourPoint, config: PrecipitationConfig) =>
+  isRainy(point, config)
     ? Math.min(
-        MAX_THICKNESS,
-        MIN_THICKNESS + THICKNESS_PER_ROOT_MM * Math.sqrt(point.precipitation),
+        config.maxThickness,
+        config.minThickness + config.thicknessPerRootMm * Math.sqrt(point.precipitation),
       )
     : 0;
 
@@ -71,15 +56,15 @@ const bezier = (a: number, b: number, c: number, d: number, t: number) => {
  * The stroke as seen from any x: where its middle is, how wide it is, and which hour is closest.
  * Both follow the same smooth curves through the hourly values, so particles line up with the shape.
  */
-function createProfile(points: HourPoint[], x: Scale, chanceY: Scale) {
+function createProfile(points: HourPoint[], x: Scale, chanceY: Scale, config: PrecipitationConfig) {
   const xs = points.map((point) => x(point.time));
   const middle = smoothCurves(
     points.map((point, i) => ({ x: xs[i], y: chanceY(point.precipProbability) })),
     { top: PLOT.top, bottom: PLOT.bottom },
   );
   const thickness = smoothCurves(
-    points.map((point, i) => ({ x: xs[i], y: getThickness(point) })),
-    { top: 0, bottom: MAX_THICKNESS },
+    points.map((point, i) => ({ x: xs[i], y: getThickness(point, config) })),
+    { top: 0, bottom: config.maxThickness },
   );
 
   return {
@@ -236,19 +221,13 @@ const FERN: Shape = sixFold([
 ]);
 
 /**
- * Below these radii (the room a particle is given, before it is drawn smaller) a flake is a speck, an
- * asterisk, a star; from the last one up it is a crystal. Raindrops below the last one are too small
- * to show their shape, and become dots.
+ * The shape of a flake follows the room it has (before it is drawn smaller): a speck, an asterisk, a
+ * star, or a crystal. The thresholds are in the config.
  */
-const SPECK_BELOW = 3.5;
-const ASTERISK_BELOW = 4.8;
-const STAR_BELOW = 6.4;
-const DROP_SPECK_BELOW = 2.7;
-
-function flakeShape(radius: number, random: () => number): Shape {
-  if (radius < ASTERISK_BELOW) return ASTERISK;
-  if (radius < STAR_BELOW) return STAR;
-  return random() < 0.5 ? DENDRITE : FERN;
+function flakeShape(radius: number, random: () => number, config: PrecipitationConfig): Shape {
+  if (radius < config.asteriskBelow) return ASTERISK;
+  if (radius < config.starBelow) return STAR;
+  return random() < config.dendriteShare ? DENDRITE : FERN;
 }
 
 /** Moves, scales and turns a point of a particle into its place in the graph */
@@ -304,13 +283,18 @@ function sampleAt(samples: Sample[], length: number) {
  * inside the stroke (and inside the graph) without touching another, so sizes mix in a wide stroke,
  * only small ones fit in a thin stroke, and nothing is ever cut off.
  */
-function layOut(points: HourPoint[], x: Scale, chanceY: Scale): Layout {
-  const profile = createProfile(points, x, chanceY);
+function layOut(
+  points: HourPoint[],
+  x: Scale,
+  chanceY: Scale,
+  config: PrecipitationConfig,
+): Layout {
+  const profile = createProfile(points, x, chanceY, config);
   const samples = sampleStroke(profile);
   const total = samples[samples.length - 1].length;
   const area = samples.reduce((sum, sample) => sum + sample.thickness * 2, 0);
 
-  const random = createRandom(5);
+  const random = createRandom(config.seed);
   let drops = '';
   let flakes = '';
   let specks = '';
@@ -327,21 +311,23 @@ function layOut(points: HourPoint[], x: Scale, chanceY: Scale): Layout {
       for (let iy = gy - 1; iy <= gy + 1; iy++) {
         for (const index of grid.get(cellKey(ix, iy)) ?? []) {
           const other = placed[index];
-          if (Math.hypot(px - other.x, py - other.y) < (radius + other.r) * SPACING) return true;
+          if (Math.hypot(px - other.x, py - other.y) < (radius + other.r) * config.spacing) {
+            return true;
+          }
         }
       }
     }
     return false;
   };
 
-  for (const size of SIZES) {
-    const attempts = Math.ceil((area / (size * size * 4)) * 1.5);
+  for (const size of getSizes(config)) {
+    const attempts = Math.ceil((area / (size * size * 4)) * config.fill);
 
     for (let attempt = 0; attempt < attempts; attempt++) {
       const sample = sampleAt(samples, random() * total);
-      const radius = size * (0.85 + 0.15 * random());
-      const room = sample.thickness / 2 - radius - EDGE_MARGIN;
-      if (room < 0 || radius > sample.thickness * MAX_SIZE_SHARE_OF_WIDTH) continue;
+      const radius = size * (1 - config.sizeVariation * random());
+      const room = sample.thickness / 2 - radius - config.edgeMargin;
+      if (room < 0 || radius > sample.thickness * config.maxSizeShare) continue;
 
       const offset = (random() * 2 - 1) * room;
       const px = sample.x + sample.nx * offset;
@@ -354,11 +340,11 @@ function layOut(points: HourPoint[], x: Scale, chanceY: Scale): Layout {
       grid.set(key, [...(grid.get(key) ?? []), index]);
 
       // The kind of particle follows the room it has; how big it is drawn is a separate choice
-      const drawn = radius * DRAW_SCALE;
+      const drawn = radius * config.drawScale;
       if (isSnow(sample.nearest)) {
-        if (radius < SPECK_BELOW) specks += speckPath(px, py, drawn * 0.7);
-        else flakes += flakePath(px, py, drawn, random() * 60, flakeShape(radius, random));
-      } else if (radius < DROP_SPECK_BELOW) {
+        if (radius < config.speckBelow) specks += speckPath(px, py, drawn * 0.7);
+        else flakes += flakePath(px, py, drawn, random() * 60, flakeShape(radius, random, config));
+      } else if (radius < config.dropSpeckBelow) {
         drops += speckPath(px, py, drawn * 0.75);
       } else {
         drops += dropPath(px, py, drawn, 6 + random() * 14);
@@ -375,14 +361,15 @@ function layOut(points: HourPoint[], x: Scale, chanceY: Scale): Layout {
   return { drops, flakes, specks, background: `M${upper.join('L')}L${lower.join('L')}Z` };
 }
 
-/** The layout only depends on the hourly values, so it is not redone when only the clock changes */
+/** The layout only depends on the hourly values and the settings, so it isn't redone when only the clock changes */
 let cache: { key: string; layout: Layout } | undefined;
 
-function getLayout(points: HourPoint[], x: Scale, chanceY: Scale) {
-  const key = points
-    .map((p) => `${p.time}/${p.precipProbability}/${p.precipitation}/${p.weatherCode}`)
-    .join(',');
-  if (cache?.key !== key) cache = { key, layout: layOut(points, x, chanceY) };
+function getLayout(points: HourPoint[], x: Scale, chanceY: Scale, config: PrecipitationConfig) {
+  const key =
+    points
+      .map((p) => `${p.time}/${p.precipProbability}/${p.precipitation}/${p.weatherCode}`)
+      .join(',') + JSON.stringify(config);
+  if (cache?.key !== key) cache = { key, layout: layOut(points, x, chanceY, config) };
   return cache.layout;
 }
 
@@ -392,18 +379,19 @@ function getLayout(points: HourPoint[], x: Scale, chanceY: Scale) {
  * vary, and are limited by how wide the stroke is where they sit.
  */
 export function GraphPrecipitation({ points, x, chanceY }: Props) {
-  const { drops, flakes, specks, background } = getLayout(points, x, chanceY);
+  const config = usePrecipitationConfig();
+  const { drops, flakes, specks, background } = getLayout(points, x, chanceY, config);
 
   return (
     <g>
-      <path d={background} fill={SNOW_COLOR} fillOpacity={BACKGROUND_OPACITY} />
-      <path d={drops} fill={RAIN_COLOR} />
-      <path d={specks} fill={SNOW_COLOR} />
+      <path d={background} fill={config.snowColor} fillOpacity={config.backgroundOpacity} />
+      <path d={drops} fill={config.rainColor} />
+      <path d={specks} fill={config.snowColor} />
       <path
         d={flakes}
         fill="none"
-        stroke={SNOW_COLOR}
-        strokeWidth="1.1"
+        stroke={config.snowColor}
+        strokeWidth={config.flakeLineWidth}
         strokeLinecap="round"
         strokeLinejoin="round"
       />
