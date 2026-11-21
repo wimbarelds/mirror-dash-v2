@@ -11,6 +11,8 @@ interface Props {
   chanceY: Scale;
 }
 
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
 /** The number of particle sizes, from the largest down to the smallest */
 const SIZE_CLASSES = 6;
 
@@ -238,13 +240,30 @@ function placer(x: number, y: number, scale: number, degrees: number) {
     `${(x + scale * (px * cos - py * sin)).toFixed(1)} ${(y + scale * (px * sin + py * cos)).toFixed(1)}`;
 }
 
-/** Path data for a raindrop that fits in a circle of the given radius, leaning by `degrees` */
-function dropPath(x: number, y: number, radius: number, degrees: number) {
-  const scale = radius / 1.4;
+/**
+ * Path data for a raindrop that fits in a circle of the given radius, leaning by `degrees`. With a
+ * `tail` above 1 the tip is drawn out longer, and the drop is made smaller to still fit.
+ */
+function dropPath(x: number, y: number, radius: number, degrees: number, tail: number) {
+  const scale = radius / Math.max(1.4, 1.35 * tail);
   const p = placer(x, y, scale, degrees);
-  const [tip, c1, c2, right, left, c3, c4] = DROP_CONTROL;
+  const [tip, c1, c2, right, left, c3, c4] = DROP_CONTROL.map(([px, py], i): [number, number] =>
+    i === 0 || i === 1 || i === 6 ? [px, py * tail] : [px, py],
+  );
   const r = scale.toFixed(2);
   return `M${p(tip)}C${p(c1)} ${p(c2)} ${p(right)}A${r} ${r} 0 0 1 ${p(left)}C${p(c3)} ${p(c4)} ${p(tip)}Z`;
+}
+
+/** A short line with rounded ends, as path data, leaning by `degrees` from upright */
+function capsulePath(x: number, y: number, halfLength: number, halfWidth: number, degrees: number) {
+  const angle = (degrees * Math.PI) / 180;
+  const [sin, cos] = [Math.sin(angle), Math.cos(angle)];
+  const [ax, ay] = [x - halfLength * sin, y + halfLength * cos];
+  const [bx, by] = [x + halfLength * sin, y - halfLength * cos];
+  const [nx, ny] = [cos * halfWidth, sin * halfWidth];
+  const at = (px: number, py: number) => `${px.toFixed(2)} ${py.toFixed(2)}`;
+  const r = halfWidth.toFixed(2);
+  return `M${at(ax + nx, ay + ny)}L${at(bx + nx, by + ny)}A${r} ${r} 0 0 0 ${at(bx - nx, by - ny)}L${at(ax - nx, ay - ny)}A${r} ${r} 0 0 0 ${at(ax + nx, ay + ny)}Z`;
 }
 
 /** Path data for a snowflake of the given shape and radius, turned by `degrees` */
@@ -340,14 +359,34 @@ function layOut(
       grid.set(key, [...(grid.get(key) ?? []), index]);
 
       // The kind of particle follows the room it has; how big it is drawn is a separate choice
-      const drawn = radius * config.drawScale;
+      const widthPast = (sample.thickness - config.minThickness) / Math.max(1, config.blendWidth);
+      const scale =
+        config.thinDrawScale + (config.drawScale - config.thinDrawScale) * clamp(widthPast, 0, 1);
+      const drawn = radius * scale;
+      // The smallest particles are dots, or short lines when movement is wanted; lines are never
+      // longer than the room the particle has
+      const line = (factor: number, degrees: number) =>
+        capsulePath(px, py, Math.min(radius, drawn * factor), drawn * 0.5, degrees);
+
       if (isSnow(sample.nearest)) {
-        if (radius < config.speckBelow) specks += speckPath(px, py, drawn * 0.7);
-        else flakes += flakePath(px, py, drawn, random() * 60, flakeShape(radius, random, config));
-      } else if (radius < config.dropSpeckBelow) {
-        drops += speckPath(px, py, drawn * 0.75);
+        if (radius < config.speckBelow) {
+          specks +=
+            config.snowStreak > 0
+              ? line(config.snowStreak, config.snowSlant + (random() - 0.5) * 20)
+              : speckPath(px, py, drawn * 0.7);
+        } else {
+          flakes += flakePath(px, py, drawn, random() * 60, flakeShape(radius, random, config));
+        }
       } else {
-        drops += dropPath(px, py, drawn, 6 + random() * 14);
+        const slant = config.rainSlant + (random() * 2 - 1) * config.rainSlantVariation;
+        if (radius < config.dropSpeckBelow) {
+          drops +=
+            config.rainStreak > 0
+              ? line(config.rainStreak, slant)
+              : speckPath(px, py, drawn * 0.75);
+        } else {
+          drops += dropPath(px, py, drawn, slant, config.dropTail);
+        }
       }
     }
   }

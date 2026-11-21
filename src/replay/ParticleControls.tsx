@@ -23,6 +23,8 @@ const GROUPS: { title: string; sliders: Slider[] }[] = [
     title: 'Grootte',
     sliders: [
       { key: 'drawScale', label: 'Deeltjesgrootte', min: 0.2, max: 1.4, step: 0.01 },
+      { key: 'thinDrawScale', label: 'Grootte in smalle streep', min: 0.2, max: 1.4, step: 0.01 },
+      { key: 'blendWidth', label: 'Overgang smal → breed', min: 1, max: 60, step: 1 },
       { key: 'largestSize', label: 'Grootste ruimte', min: 3, max: 16, step: 0.1 },
       { key: 'smallestSize', label: 'Kleinste ruimte', min: 1, max: 6, step: 0.1 },
       { key: 'sizeVariation', label: 'Variatie per klasse', min: 0, max: 0.6, step: 0.01 },
@@ -56,6 +58,17 @@ const GROUPS: { title: string; sliders: Slider[] }[] = [
       { key: 'dropSpeckBelow', label: 'Druppel wordt stip tot', min: 1, max: 10, step: 0.1 },
       { key: 'dendriteShare', label: 'Aandeel dendriet (vs. varen)', min: 0, max: 1, step: 0.05 },
       { key: 'flakeLineWidth', label: 'Lijndikte vlok', min: 0.3, max: 3, step: 0.05 },
+    ],
+  },
+  {
+    title: 'Beweging (suggestie)',
+    sliders: [
+      { key: 'rainSlant', label: 'Regen: hellingshoek (°)', min: 0, max: 60, step: 1 },
+      { key: 'rainSlantVariation', label: 'Regen: variatie hoek (°)', min: 0, max: 30, step: 1 },
+      { key: 'dropTail', label: 'Druppel: lengte staart', min: 1, max: 2.6, step: 0.05 },
+      { key: 'rainStreak', label: 'Regen: streepjes i.p.v. stippen', min: 0, max: 4, step: 0.1 },
+      { key: 'snowStreak', label: 'Sneeuw: streepjes i.p.v. stippen', min: 0, max: 4, step: 0.1 },
+      { key: 'snowSlant', label: 'Sneeuw: hellingshoek (°)', min: 0, max: 90, step: 1 },
     ],
   },
 ];

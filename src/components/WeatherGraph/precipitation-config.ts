@@ -7,6 +7,12 @@ import { createContext, useContext } from 'react';
 export interface PrecipitationConfig {
   /** Size: the share of the room a particle has that it is drawn at */
   drawScale: number;
+  /**
+   * Size: the same, in the narrowest part of the stroke, blending into `drawScale` over `blendWidth`
+   * of extra width. A thin stroke has little to show, so its particles can be drawn relatively larger.
+   */
+  thinDrawScale: number;
+  blendWidth: number;
   /** Size: the largest and smallest room a particle is given (a radius, in drawing units) */
   largestSize: number;
   smallestSize: number;
@@ -43,12 +49,26 @@ export interface PrecipitationConfig {
   rainColor: string;
   snowColor: string;
 
+  /**
+   * Movement (a still picture only suggests it): rain leans by `rainSlant` degrees, give or take
+   * `rainSlantVariation`; drops get a tail that is `dropTail` times as long (1 = a plain drop); the
+   * smallest rain and snow are short lines instead of dots, as long as these factors say (0 = dots)
+   */
+  rainSlant: number;
+  rainSlantVariation: number;
+  dropTail: number;
+  rainStreak: number;
+  snowStreak: number;
+  snowSlant: number;
+
   /** Changing this gives a different, equally random arrangement */
   seed: number;
 }
 
 export const defaultPrecipitationConfig: PrecipitationConfig = {
   drawScale: 0.62,
+  thinDrawScale: 0.62,
+  blendWidth: 25,
   largestSize: 8,
   smallestSize: 2.7,
   sizeVariation: 0.15,
@@ -72,6 +92,13 @@ export const defaultPrecipitationConfig: PrecipitationConfig = {
   flakeLineWidth: 1.1,
   rainColor: '#8fc3ff',
   snowColor: '#ffffff',
+
+  rainSlant: 20,
+  rainSlantVariation: 6,
+  dropTail: 1.4,
+  rainStreak: 1.8,
+  snowStreak: 0,
+  snowSlant: 35,
 
   seed: 5,
 };
