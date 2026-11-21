@@ -23,8 +23,7 @@ const GROUPS: { title: string; sliders: Slider[] }[] = [
     title: 'Grootte',
     sliders: [
       { key: 'drawScale', label: 'Deeltjesgrootte', min: 0.2, max: 1.4, step: 0.01 },
-      { key: 'thinDrawScale', label: 'Grootte in smalle streep', min: 0.2, max: 1.4, step: 0.01 },
-      { key: 'blendWidth', label: 'Overgang smal → breed', min: 1, max: 60, step: 1 },
+      { key: 'rainScale', label: 'Regen groter dan sneeuw', min: 1, max: 3, step: 0.05 },
       { key: 'largestSize', label: 'Grootste ruimte', min: 3, max: 16, step: 0.1 },
       { key: 'smallestSize', label: 'Kleinste ruimte', min: 1, max: 6, step: 0.1 },
       { key: 'sizeVariation', label: 'Variatie per klasse', min: 0, max: 0.6, step: 0.01 },
@@ -35,7 +34,6 @@ const GROUPS: { title: string; sliders: Slider[] }[] = [
     title: 'Dichtheid',
     sliders: [
       { key: 'spacing', label: 'Tussenruimte', min: 0.8, max: 2, step: 0.01 },
-      { key: 'edgeMargin', label: 'Randmarge', min: 0, max: 6, step: 0.1 },
       { key: 'fill', label: 'Opvulling', min: 0.3, max: 4, step: 0.1 },
     ],
   },
@@ -46,7 +44,6 @@ const GROUPS: { title: string; sliders: Slider[] }[] = [
       { key: 'maxThickness', label: 'Max. breedte', min: 20, max: 120, step: 1 },
       { key: 'thicknessPerRootMm', label: 'Breedte per √mm', min: 0, max: 80, step: 1 },
       { key: 'minChance', label: 'Min. kans (%)', min: 0, max: 80, step: 1 },
-      { key: 'backgroundOpacity', label: 'Achtergrond', min: 0, max: 0.4, step: 0.01 },
     ],
   },
   {
@@ -54,21 +51,8 @@ const GROUPS: { title: string; sliders: Slider[] }[] = [
     sliders: [
       { key: 'speckBelow', label: 'Stipje tot', min: 1, max: 12, step: 0.1 },
       { key: 'asteriskBelow', label: 'Sterretje tot', min: 1, max: 12, step: 0.1 },
-      { key: 'starBelow', label: 'Ster tot (daarna kristal)', min: 1, max: 14, step: 0.1 },
       { key: 'dropSpeckBelow', label: 'Druppel wordt stip tot', min: 1, max: 10, step: 0.1 },
-      { key: 'dendriteShare', label: 'Aandeel dendriet (vs. varen)', min: 0, max: 1, step: 0.05 },
-      { key: 'flakeLineWidth', label: 'Lijndikte vlok', min: 0.3, max: 3, step: 0.05 },
-    ],
-  },
-  {
-    title: 'Beweging (suggestie)',
-    sliders: [
       { key: 'rainSlant', label: 'Regen: hellingshoek (°)', min: 0, max: 60, step: 1 },
-      { key: 'rainSlantVariation', label: 'Regen: variatie hoek (°)', min: 0, max: 30, step: 1 },
-      { key: 'dropTail', label: 'Druppel: lengte staart', min: 1, max: 2.6, step: 0.05 },
-      { key: 'rainStreak', label: 'Regen: streepjes i.p.v. stippen', min: 0, max: 4, step: 0.1 },
-      { key: 'snowStreak', label: 'Sneeuw: streepjes i.p.v. stippen', min: 0, max: 4, step: 0.1 },
-      { key: 'snowSlant', label: 'Sneeuw: hellingshoek (°)', min: 0, max: 90, step: 1 },
     ],
   },
 ];

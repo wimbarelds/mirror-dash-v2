@@ -7,12 +7,8 @@ import { createContext, useContext } from 'react';
 export interface PrecipitationConfig {
   /** Size: the share of the room a particle has that it is drawn at */
   drawScale: number;
-  /**
-   * Size: the same, in the narrowest part of the stroke, blending into `drawScale` over `blendWidth`
-   * of extra width. A thin stroke has little to show, so its particles can be drawn relatively larger.
-   */
-  thinDrawScale: number;
-  blendWidth: number;
+  /** Size: raindrops are drawn this much larger than snow, as small light-blue drops are hard to see */
+  rainScale: number;
   /** Size: the largest and smallest room a particle is given (a radius, in drawing units) */
   largestSize: number;
   smallestSize: number;
@@ -23,8 +19,6 @@ export interface PrecipitationConfig {
 
   /** Density: how much room particles keep around each other (1 = touching) */
   spacing: number;
-  /** Density: free space between a particle and the edge of the stroke */
-  edgeMargin: number;
   /** Density: how hard the gaps are filled (more tries per size) */
   fill: number;
 
@@ -34,71 +28,43 @@ export interface PrecipitationConfig {
   thicknessPerRootMm: number;
   /** Stroke: the lowest chance of precipitation (%) that is drawn when no rain is expected */
   minChance: number;
-  /** Stroke: a faint tint behind the particles (0 = none) */
-  backgroundOpacity: number;
 
-  /** Shapes: flakes below `speckBelow` are specks, then asterisks, stars, and from `starBelow` crystals */
+  /** Shapes: snow below `speckBelow` is a speck, then an asterisk, and from `asteriskBelow` a star */
   speckBelow: number;
   asteriskBelow: number;
-  starBelow: number;
   /** Shapes: raindrops below this are dots */
   dropSpeckBelow: number;
-  /** Shapes: how many of the crystals are the sparser dendrite, rather than the finer fern */
-  dendriteShare: number;
-  flakeLineWidth: number;
+  /** Shapes: rain leans this many degrees, as if blown by the wind */
+  rainSlant: number;
   rainColor: string;
   snowColor: string;
-
-  /**
-   * Movement (a still picture only suggests it): rain leans by `rainSlant` degrees, give or take
-   * `rainSlantVariation`; drops get a tail that is `dropTail` times as long (1 = a plain drop); the
-   * smallest rain and snow are short lines instead of dots, as long as these factors say (0 = dots)
-   */
-  rainSlant: number;
-  rainSlantVariation: number;
-  dropTail: number;
-  rainStreak: number;
-  snowStreak: number;
-  snowSlant: number;
 
   /** Changing this gives a different, equally random arrangement */
   seed: number;
 }
 
 export const defaultPrecipitationConfig: PrecipitationConfig = {
-  drawScale: 0.62,
-  thinDrawScale: 0.62,
-  blendWidth: 25,
-  largestSize: 8,
-  smallestSize: 2.7,
-  sizeVariation: 0.15,
-  maxSizeShare: 0.3,
+  drawScale: 0.35,
+  rainScale: 1.6,
+  largestSize: 5.2,
+  smallestSize: 3,
+  sizeVariation: 0.45,
+  maxSizeShare: 0.21,
 
-  spacing: 1.06,
-  edgeMargin: 1.5,
-  fill: 1.5,
+  spacing: 1.12,
+  fill: 2.2,
 
-  minThickness: 16,
+  minThickness: 15,
   maxThickness: 68,
   thicknessPerRootMm: 26,
-  minChance: 25,
-  backgroundOpacity: 0.05,
+  minChance: 0,
 
-  speckBelow: 3.5,
+  speckBelow: 3.7,
   asteriskBelow: 4.8,
-  starBelow: 6.4,
   dropSpeckBelow: 2.7,
-  dendriteShare: 0.5,
-  flakeLineWidth: 1.1,
+  rainSlant: 20,
   rainColor: '#8fc3ff',
   snowColor: '#ffffff',
-
-  rainSlant: 20,
-  rainSlantVariation: 6,
-  dropTail: 1.4,
-  rainStreak: 1.8,
-  snowStreak: 0,
-  snowSlant: 35,
 
   seed: 5,
 };

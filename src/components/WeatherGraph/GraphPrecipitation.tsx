@@ -11,8 +11,6 @@ interface Props {
   chanceY: Scale;
 }
 
-const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
-
 /** The number of particle sizes, from the largest down to the smallest */
 const SIZE_CLASSES = 6;
 
@@ -133,8 +131,23 @@ function sampleStroke(profile: ReturnType<typeof createProfile>) {
   return samples;
 }
 
+type Point2 = [number, number];
+
+const turn = ([x, y]: Point2, degrees: number): Point2 => {
+  const angle = (degrees * Math.PI) / 180;
+  return [x * Math.cos(angle) - y * Math.sin(angle), x * Math.sin(angle) + y * Math.cos(angle)];
+};
+
+/** Moves, scales and turns a point of a particle into its place in the graph */
+function placer(x: number, y: number, scale: number, degrees: number) {
+  const angle = (degrees * Math.PI) / 180;
+  const [cos, sin] = [Math.cos(angle), Math.sin(angle)];
+  return ([px, py]: Point2) =>
+    `${(x + scale * (px * cos - py * sin)).toFixed(1)} ${(y + scale * (px * sin + py * cos)).toFixed(1)}`;
+}
+
 /** A raindrop: a round body with a slight tip. Positions are in a space where the body has radius 1. */
-const DROP_CONTROL: [number, number][] = [
+const DROP_CONTROL: Point2[] = [
   [0, -1.35], // tip
   [0.3, -0.75],
   [1, -0.2],
@@ -144,34 +157,30 @@ const DROP_CONTROL: [number, number][] = [
   [-0.3, -0.75],
 ];
 
-type Point2 = [number, number];
-/** A shape is a set of lines in a space where it has a radius of about 1 */
-type Shape = { points: Point2[] }[];
-
-const turn = ([x, y]: Point2, degrees: number): Point2 => {
-  const angle = (degrees * Math.PI) / 180;
-  return [x * Math.cos(angle) - y * Math.sin(angle), x * Math.sin(angle) + y * Math.cos(angle)];
-};
-
-/** Repeats what is drawn on one arm at 0, 60 and 120 degrees, so it reads as a six-pointed crystal */
-const sixFold = (arm: Point2[][]): Shape =>
-  [0, 60, 120].flatMap((degrees) =>
-    arm.map((line) => ({ points: line.map((point) => turn(point, degrees)) })),
-  );
+/** Path data for a raindrop that fits in a circle of the given radius, leaning by `degrees` */
+function dropPath(x: number, y: number, radius: number, degrees: number) {
+  const scale = radius / 1.4;
+  const p = placer(x, y, scale, degrees);
+  const [tip, c1, c2, right, left, c3, c4] = DROP_CONTROL;
+  const r = scale.toFixed(2);
+  return `M${p(tip)}C${p(c1)} ${p(c2)} ${p(right)}A${r} ${r} 0 0 1 ${p(left)}C${p(c3)} ${p(c4)} ${p(tip)}Z`;
+}
 
 /**
- * Snowflakes get a shape that suits their size, like the forms real crystals take: the smallest are
- * plain specks (not in this list), then a simple asterisk, a star with small chevrons at the tips,
- * and the largest are detailed, branched crystals (two variants).
+ * Snowflakes: three lines crossing at 60 degrees, which is a simple asterisk, or the same with a
+ * small chevron near each tip, which is a star.
  */
-const ASTERISK: Shape = sixFold([
+const sixFold = (arm: Point2[][]) =>
+  [0, 60, 120].flatMap((degrees) => arm.map((line) => line.map((point) => turn(point, degrees))));
+
+const ASTERISK = sixFold([
   [
     [0, -1],
     [0, 1],
   ],
 ]);
 
-const STAR: Shape = sixFold([
+const STAR = sixFold([
   [
     [0, -1],
     [0, 1],
@@ -188,89 +197,11 @@ const STAR: Shape = sixFold([
   ],
 ]);
 
-/** A branch off the arm at distance `d` from the centre, spreading outwards by `b` */
-const branch = (d: number, b: number): Point2[][] => [
-  [
-    [-b, -d - b * 1.1],
-    [0, -d],
-    [b, -d - b * 1.1],
-  ],
-  [
-    [-b, d + b * 1.1],
-    [0, d],
-    [b, d + b * 1.1],
-  ],
-];
-
-const DENDRITE: Shape = sixFold([
-  [
-    [0, -1],
-    [0, 1],
-  ],
-  ...branch(0.42, 0.22),
-  ...branch(0.74, 0.18),
-]);
-
-/** A finer crystal: more, shorter branches along each arm */
-const FERN: Shape = sixFold([
-  [
-    [0, -1],
-    [0, 1],
-  ],
-  ...branch(0.3, 0.14),
-  ...branch(0.55, 0.14),
-  ...branch(0.8, 0.11),
-]);
-
-/**
- * The shape of a flake follows the room it has (before it is drawn smaller): a speck, an asterisk, a
- * star, or a crystal. The thresholds are in the config.
- */
-function flakeShape(radius: number, random: () => number, config: PrecipitationConfig): Shape {
-  if (radius < config.asteriskBelow) return ASTERISK;
-  if (radius < config.starBelow) return STAR;
-  return random() < config.dendriteShare ? DENDRITE : FERN;
-}
-
-/** Moves, scales and turns a point of a particle into its place in the graph */
-function placer(x: number, y: number, scale: number, degrees: number) {
-  const angle = (degrees * Math.PI) / 180;
-  const [cos, sin] = [Math.cos(angle), Math.sin(angle)];
-  return ([px, py]: [number, number]) =>
-    `${(x + scale * (px * cos - py * sin)).toFixed(1)} ${(y + scale * (px * sin + py * cos)).toFixed(1)}`;
-}
-
-/**
- * Path data for a raindrop that fits in a circle of the given radius, leaning by `degrees`. With a
- * `tail` above 1 the tip is drawn out longer, and the drop is made smaller to still fit.
- */
-function dropPath(x: number, y: number, radius: number, degrees: number, tail: number) {
-  const scale = radius / Math.max(1.4, 1.35 * tail);
-  const p = placer(x, y, scale, degrees);
-  const [tip, c1, c2, right, left, c3, c4] = DROP_CONTROL.map(([px, py], i): [number, number] =>
-    i === 0 || i === 1 || i === 6 ? [px, py * tail] : [px, py],
-  );
-  const r = scale.toFixed(2);
-  return `M${p(tip)}C${p(c1)} ${p(c2)} ${p(right)}A${r} ${r} 0 0 1 ${p(left)}C${p(c3)} ${p(c4)} ${p(tip)}Z`;
-}
-
-/** A short line with rounded ends, as path data, leaning by `degrees` from upright */
-function capsulePath(x: number, y: number, halfLength: number, halfWidth: number, degrees: number) {
-  const angle = (degrees * Math.PI) / 180;
-  const [sin, cos] = [Math.sin(angle), Math.cos(angle)];
-  const [ax, ay] = [x - halfLength * sin, y + halfLength * cos];
-  const [bx, by] = [x + halfLength * sin, y - halfLength * cos];
-  const [nx, ny] = [cos * halfWidth, sin * halfWidth];
-  const at = (px: number, py: number) => `${px.toFixed(2)} ${py.toFixed(2)}`;
-  const r = halfWidth.toFixed(2);
-  return `M${at(ax + nx, ay + ny)}L${at(bx + nx, by + ny)}A${r} ${r} 0 0 0 ${at(bx - nx, by - ny)}L${at(ax - nx, ay - ny)}A${r} ${r} 0 0 0 ${at(ax + nx, ay + ny)}Z`;
-}
-
 /** Path data for a snowflake of the given shape and radius, turned by `degrees` */
-function flakePath(x: number, y: number, radius: number, degrees: number, shape: Shape) {
+function flakePath(x: number, y: number, radius: number, degrees: number, shape: Point2[][]) {
   const p = placer(x, y, radius, degrees);
   return shape
-    .map(({ points }) => points.map((point, i) => `${i === 0 ? 'M' : 'L'}${p(point)}`).join(''))
+    .map((line) => line.map((point, i) => `${i === 0 ? 'M' : 'L'}${p(point)}`).join(''))
     .join('');
 }
 
@@ -282,7 +213,6 @@ interface Layout {
   drops: string;
   flakes: string;
   specks: string;
-  background: string;
 }
 
 /** Index of the last sample that is not further along the stroke than the given length */
@@ -345,7 +275,7 @@ function layOut(
     for (let attempt = 0; attempt < attempts; attempt++) {
       const sample = sampleAt(samples, random() * total);
       const radius = size * (1 - config.sizeVariation * random());
-      const room = sample.thickness / 2 - radius - config.edgeMargin;
+      const room = sample.thickness / 2 - radius;
       if (room < 0 || radius > sample.thickness * config.maxSizeShare) continue;
 
       const offset = (random() * 2 - 1) * room;
@@ -359,45 +289,23 @@ function layOut(
       grid.set(key, [...(grid.get(key) ?? []), index]);
 
       // The kind of particle follows the room it has; how big it is drawn is a separate choice
-      const widthPast = (sample.thickness - config.minThickness) / Math.max(1, config.blendWidth);
-      const scale =
-        config.thinDrawScale + (config.drawScale - config.thinDrawScale) * clamp(widthPast, 0, 1);
-      const drawn = radius * scale;
-      // The smallest particles are dots, or short lines when movement is wanted; lines are never
-      // longer than the room the particle has
-      const line = (factor: number, degrees: number) =>
-        capsulePath(px, py, Math.min(radius, drawn * factor), drawn * 0.5, degrees);
-
+      const drawn = radius * config.drawScale;
       if (isSnow(sample.nearest)) {
         if (radius < config.speckBelow) {
-          specks +=
-            config.snowStreak > 0
-              ? line(config.snowStreak, config.snowSlant + (random() - 0.5) * 20)
-              : speckPath(px, py, drawn * 0.7);
+          specks += speckPath(px, py, drawn * 0.7);
         } else {
-          flakes += flakePath(px, py, drawn, random() * 60, flakeShape(radius, random, config));
+          const shape = radius < config.asteriskBelow ? ASTERISK : STAR;
+          flakes += flakePath(px, py, drawn, random() * 60, shape);
         }
+      } else if (radius < config.dropSpeckBelow) {
+        drops += speckPath(px, py, drawn * config.rainScale * 0.75);
       } else {
-        const slant = config.rainSlant + (random() * 2 - 1) * config.rainSlantVariation;
-        if (radius < config.dropSpeckBelow) {
-          drops +=
-            config.rainStreak > 0
-              ? line(config.rainStreak, slant)
-              : speckPath(px, py, drawn * 0.75);
-        } else {
-          drops += dropPath(px, py, drawn, slant, config.dropTail);
-        }
+        drops += dropPath(px, py, drawn * config.rainScale, config.rainSlant);
       }
     }
   }
 
-  /** The outline of the stroke, for the faint background */
-  const edge = (s: Sample, side: 1 | -1) =>
-    `${(s.x + (side * s.nx * s.thickness) / 2).toFixed(1)} ${(s.y + (side * s.ny * s.thickness) / 2).toFixed(1)}`;
-  const upper = samples.map((s) => edge(s, -1));
-  const lower = samples.map((s) => edge(s, 1)).reverse();
-
-  return { drops, flakes, specks, background: `M${upper.join('L')}L${lower.join('L')}Z` };
+  return { drops, flakes, specks };
 }
 
 /** The layout only depends on the hourly values and the settings, so it isn't redone when only the clock changes */
@@ -419,18 +327,17 @@ function getLayout(points: HourPoint[], x: Scale, chanceY: Scale, config: Precip
  */
 export function GraphPrecipitation({ points, x, chanceY }: Props) {
   const config = usePrecipitationConfig();
-  const { drops, flakes, specks, background } = getLayout(points, x, chanceY, config);
+  const { drops, flakes, specks } = getLayout(points, x, chanceY, config);
 
   return (
     <g>
-      <path d={background} fill={config.snowColor} fillOpacity={config.backgroundOpacity} />
       <path d={drops} fill={config.rainColor} />
       <path d={specks} fill={config.snowColor} />
       <path
         d={flakes}
         fill="none"
         stroke={config.snowColor}
-        strokeWidth={config.flakeLineWidth}
+        strokeWidth="1.1"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
