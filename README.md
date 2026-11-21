@@ -21,4 +21,4 @@ The moment shown is kept in the URL (e.g. `mockdata.html?t=2025-01-10T12:00`), s
 - `vp build` - create a production build
 - `vp check` - run lint, format, typecheck
 - `vp check --fix` - run lint, format, typecheck, with autofix
-- `node scripts/fetch-mockdata-weather.mjs 2024-12-31 2026-01-01` - download the recorded weather again
+- `vpx scripts/fetch-mockdata-weather.ts 2024-12-31 2026-01-01` - download the recorded weather again (on Windows, `vpx` cannot run a script file; use `vp node scripts/fetch-mockdata-weather.ts 2024-12-31 2026-01-01`)
