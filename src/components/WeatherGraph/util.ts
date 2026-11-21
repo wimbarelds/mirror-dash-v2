@@ -69,28 +69,39 @@ export interface CurveSample extends Point {
 
 const STEPS_PER_SEGMENT = 24;
 
-/** Points at an even distance along the curves, starting at its beginning */
+/**
+ * Points along the curves at about the given distance from each other. Every segment gets a whole
+ * number of evenly spaced points, starting exactly on the data point, so those always get a dot.
+ */
 export function sampleCurves(curves: Cubic[], spacing: number): CurveSample[] {
   if (curves.length === 0) return [];
 
-  const samples: CurveSample[] = [{ ...curves[0].from, segment: 0, t: 0 }];
-  let previous: Point = curves[0].from;
-  let travelled = 0;
+  const samples: CurveSample[] = [];
 
   curves.forEach((curve, segment) => {
+    // Distance travelled along the curve at every step, to turn distances into positions
+    const distances = [0];
+    let previous: Point = curve.from;
     for (let step = 1; step <= STEPS_PER_SEGMENT; step++) {
-      const t = step / STEPS_PER_SEGMENT;
-      const point = pointOnCubic(curve, t);
-      travelled += Math.hypot(point.x - previous.x, point.y - previous.y);
+      const point = pointOnCubic(curve, step / STEPS_PER_SEGMENT);
+      distances.push(distances[step - 1] + Math.hypot(point.x - previous.x, point.y - previous.y));
       previous = point;
+    }
 
-      if (travelled >= spacing) {
-        samples.push({ ...point, segment, t });
-        travelled -= spacing;
-      }
+    const count = Math.max(1, Math.round(distances[STEPS_PER_SEGMENT] / spacing));
+    let step = 1;
+    for (let i = 0; i < count; i++) {
+      const target = (i / count) * distances[STEPS_PER_SEGMENT];
+      while (distances[step] < target) step++;
+      const span = distances[step] - distances[step - 1];
+      const fraction = span > 0 ? (target - distances[step - 1]) / span : 0;
+      const t = (step - 1 + fraction) / STEPS_PER_SEGMENT;
+      samples.push({ ...pointOnCubic(curve, t), segment, t });
     }
   });
 
+  const last = curves[curves.length - 1];
+  samples.push({ ...last.to, segment: curves.length - 1, t: 1 });
   return samples;
 }
 

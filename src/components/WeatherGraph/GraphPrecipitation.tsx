@@ -24,7 +24,7 @@ const WET = 0.1;
 const colorOf = (point: HourPoint) => (isSnow(point) ? SNOW_COLOR : RAIN_COLOR);
 
 /** Half the length of the vertical line through an hour's dot: grows with the square root of the amount */
-const halfLength = (mm: number) => Math.min(44, 8 + 14 * Math.sqrt(mm));
+const halfLength = (mm: number) => Math.min(32, 5 + 10 * Math.sqrt(mm));
 
 /**
  * Precipitation as a dotted line. The height follows the chance (read from the right-hand axis) and
@@ -48,12 +48,12 @@ export function GraphPrecipitation({ points, x, chanceY }: Props) {
           const [top, bottom] = [cy - half, cy + half];
 
           return (
-            <g key={point.time} stroke={colorOf(point)} strokeWidth="2.5" strokeLinecap="round">
+            <g key={point.time} stroke={colorOf(point)} strokeWidth="1.5" strokeLinecap="round">
               <line x1={cx} x2={cx} y1={top} y2={bottom} />
               {style === 'caps' && (
                 <>
-                  <line x1={cx - 6} x2={cx + 6} y1={top} y2={top} />
-                  <line x1={cx - 6} x2={cx + 6} y1={bottom} y2={bottom} />
+                  <line x1={cx - 4} x2={cx + 4} y1={top} y2={top} />
+                  <line x1={cx - 4} x2={cx + 4} y1={bottom} y2={bottom} />
                 </>
               )}
             </g>
