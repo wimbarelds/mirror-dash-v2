@@ -1,111 +1,133 @@
 import { colors } from './constants';
-import { Point, Range, RangePoint, Scaler } from './types';
+import { Point, Scale } from './types';
 
-export function getScaler(size: Point, margins: Point): Scaler {
-  return {
-    size,
-    margins,
-    x: (pct: number) => margins.x + pct * (size.x - margins.x * 2),
-    y: (pct: number) => size.y - margins.y - pct * (size.y - margins.y * 2),
-  };
+export const round = (value: number) => Math.round(value * 10) / 10;
+
+export const linearScale =
+  (from0: number, from1: number, to0: number, to1: number): Scale =>
+  (value) =>
+    to0 + ((value - from0) / (from1 - from0)) * (to1 - to0);
+
+/** Vertical limits, so smoothing can't overshoot them between points */
+interface Bounds {
+  top: number;
+  bottom: number;
 }
 
-export const pointToScaled = (
-  point: Point,
-  xRange: Range,
-  yRange: Range,
-  scaler: Scaler,
-): string => {
-  const x = scaler.x((point.x - xRange.min) / (xRange.max - xRange.min));
-  const y = scaler.y((point.y - yRange.min) / (yRange.max - yRange.min));
-  return `${x} ${y}`;
-};
+/** A cubic Bézier segment between two neighbouring points */
+export interface Cubic {
+  from: Point;
+  c1: Point;
+  c2: Point;
+  to: Point;
+}
 
-export const getYRange1Values = (values: number[]) => {
-  const minVal = Math.min(0, ...values);
-  const maxVal = Math.max(30, ...values);
+/** Segments of a smooth curve through every point */
+export function smoothCurves(points: Point[], bounds?: Bounds): Cubic[] {
+  const limit = (y: number) => (bounds ? Math.min(bounds.bottom, Math.max(bounds.top, y)) : y);
 
-  const minRounded = Math.floor(minVal / 10) * 10;
-  const maxRounded = Math.ceil(maxVal / 10) * 10;
-  const range: RangePoint[] = [];
-  for (let rangePoint = minRounded; rangePoint <= maxRounded; rangePoint += 10) {
-    range.push({
-      value: rangePoint,
-      text: rangePoint.toString() + '°',
-      pos: 0,
+  const curves: Cubic[] = [];
+  for (let i = 1; i < points.length; i++) {
+    const from = points[i - 1];
+    const to = points[i];
+    const before = points[i - 2] ?? from;
+    const after = points[i + 1] ?? to;
+    curves.push({
+      from,
+      c1: { x: from.x + (to.x - before.x) / 6, y: limit(from.y + (to.y - before.y) / 6) },
+      c2: { x: to.x - (after.x - from.x) / 6, y: limit(to.y - (after.y - from.y) / 6) },
+      to,
     });
   }
+  return curves;
+}
 
+export const pointOnCubic = ({ from, c1, c2, to }: Cubic, t: number): Point => {
+  const u = 1 - t;
+  const [a, b, c, d] = [u * u * u, 3 * u * u * t, 3 * u * t * t, t * t * t];
   return {
-    min: minRounded,
-    max: maxRounded,
-    range: range,
+    x: a * from.x + b * c1.x + c * c2.x + d * to.x,
+    y: a * from.y + b * c1.y + c * c2.y + d * to.y,
   };
 };
 
-export const getYRange2Values = (values: number[]) => {
-  const minVal = Math.min(0, ...values);
-  const maxVal = Math.max(100, ...values);
+export interface CurveSample extends Point {
+  /** The curve segment, and how far along it (0-1) */
+  segment: number;
+  t: number;
+}
 
-  const range: RangePoint[] = [];
-  for (let rangePoint = minVal; rangePoint <= maxVal; rangePoint += 20) {
-    range.push({
-      value: rangePoint,
-      text: Math.floor(rangePoint).toString() + '%',
-      pos: 0,
-    });
+const STEPS_PER_SEGMENT = 24;
+
+/** Evenly spaced points along the curves, with one exactly on every data point */
+export function sampleCurves(curves: Cubic[], spacing: number): CurveSample[] {
+  if (curves.length === 0) return [];
+
+  const samples: CurveSample[] = [];
+
+  curves.forEach((curve, segment) => {
+    // Distance along the curve at every step
+    const distances = [0];
+    let previous: Point = curve.from;
+    for (let step = 1; step <= STEPS_PER_SEGMENT; step++) {
+      const point = pointOnCubic(curve, step / STEPS_PER_SEGMENT);
+      distances.push(distances[step - 1] + Math.hypot(point.x - previous.x, point.y - previous.y));
+      previous = point;
+    }
+
+    const count = Math.max(1, Math.round(distances[STEPS_PER_SEGMENT] / spacing));
+    let step = 1;
+    for (let i = 0; i < count; i++) {
+      const target = (i / count) * distances[STEPS_PER_SEGMENT];
+      while (distances[step] < target) step++;
+      const span = distances[step] - distances[step - 1];
+      const fraction = span > 0 ? (target - distances[step - 1]) / span : 0;
+      const t = (step - 1 + fraction) / STEPS_PER_SEGMENT;
+      samples.push({ ...pointOnCubic(curve, t), segment, t });
+    }
+  });
+
+  const last = curves[curves.length - 1];
+  samples.push({ ...last.to, segment: curves.length - 1, t: 1 });
+  return samples;
+}
+
+/** SVG path data for a smooth curve through every point */
+export function smoothPath(points: Point[]) {
+  const segments = smoothCurves(points).map(
+    ({ c1, c2, to }) =>
+      ` C${round(c1.x)} ${round(c1.y)} ${round(c2.x)} ${round(c2.y)} ${round(to.x)} ${round(to.y)}`,
+  );
+  return `M${round(points[0].x)} ${round(points[0].y)}${segments.join('')}`;
+}
+
+/** An axis that fits the data, so a mild day isn't a flat line */
+export function getTemperatureAxis(values: number[]) {
+  let min = Math.floor(Math.min(...values) - 1);
+  let max = Math.ceil(Math.max(...values) + 1);
+  if (max - min < 6) {
+    min = Math.floor((min + max) / 2 - 3);
+    max = min + 6;
   }
 
-  return {
-    min: minVal,
-    max: maxVal,
-    range: range,
-  };
-};
+  const step = max - min <= 8 ? 2 : max - min <= 20 ? 5 : 10;
+  const ticks: number[] = [];
+  for (let tick = Math.ceil(min / step) * step; tick <= max; tick += step) ticks.push(tick);
 
-export const getXRangeValues = (values: number[]) => {
-  const minVal = Math.min(...values);
-  const maxVal = Math.max(...values);
+  return { min, max, ticks };
+}
 
-  const range: RangePoint[] = [];
-  for (let rangePoint = minVal; rangePoint <= maxVal; rangePoint += 1000 * 60 * 60) {
-    const date = new Date(rangePoint);
-    range.push({
-      value: rangePoint,
-      text: date.getHours().toString() + ':00',
-      pos: 0,
-    });
-  }
+const mixColors = (amount: number, from: number[], to: number[]) =>
+  '#' +
+  [0, 1, 2]
+    .map((channel) => Math.round(from[channel] * (1 - amount) + to[channel] * amount))
+    .map((value) => value.toString(16).padStart(2, '0'))
+    .join('');
 
-  return {
-    min: minVal,
-    max: maxVal,
-    range: range,
-  };
-};
-
-export const temperatureToColor = (temperature: number): string => {
-  if (temperature < -10) return temperatureInRangeToColor(0, colors.veryCold, colors.veryCold);
-  if (temperature <= 0)
-    return temperatureInRangeToColor(temperature / -10, colors.veryCold, colors.cold);
-  if (temperature <= 15)
-    return temperatureInRangeToColor(temperature / 15, colors.cold, colors.warm);
-  if (temperature <= 35)
-    return temperatureInRangeToColor((temperature - 15) / 20, colors.warm, colors.hot);
-  return temperatureInRangeToColor(0, colors.hot, colors.hot);
-};
-
-const temperatureInRangeToColor = (pct: number, color0: number[], color1: number[]): string => {
-  const c0 = [color0[0] * (1 - pct), color0[1] * (1 - pct), color0[2] * (1 - pct)];
-  const c1 = [color1[0] * pct, color1[1] * pct, color1[2] * pct];
-  const r = Math.round(c0[0] + c1[0])
-    .toString(16)
-    .padStart(2, '0');
-  const g = Math.round(c0[1] + c1[1])
-    .toString(16)
-    .padStart(2, '0');
-  const b = Math.round(c0[2] + c1[2])
-    .toString(16)
-    .padStart(2, '0');
-  return `#${r}${g}${b}`;
-};
+export function temperatureToColor(temperature: number) {
+  if (temperature <= -10) return mixColors(1, colors.cold, colors.veryCold);
+  if (temperature <= 0) return mixColors(temperature / -10, colors.cold, colors.veryCold);
+  if (temperature <= 15) return mixColors(temperature / 15, colors.cold, colors.warm);
+  if (temperature <= 35) return mixColors((temperature - 15) / 20, colors.warm, colors.hot);
+  return mixColors(1, colors.warm, colors.hot);
+}

@@ -3,13 +3,16 @@ import { fetchWeatherApi } from 'openmeteo';
 const params = {
   latitude: 53.247072,
   longitude: 6.588939,
-  current: ['temperature_2m', 'apparent_temperature', 'precipitation', 'weather_code'],
+  current: ['temperature_2m', 'apparent_temperature', 'precipitation', 'weather_code', 'is_day'],
   hourly: [
     'temperature_2m',
     'apparent_temperature',
     'precipitation_probability',
     'precipitation',
     'weather_code',
+    // For the ice risk
+    'soil_temperature_0cm',
+    'relative_humidity_2m',
   ],
   daily: [
     'weather_code',
@@ -21,6 +24,8 @@ const params = {
     'precipitation_probability_max',
   ],
   timezone: 'Europe/Amsterdam',
+  // The graph starts two hours back, which can be yesterday
+  past_days: 1,
 } as const;
 const url = 'https://api.open-meteo.com/v1/forecast';
 
@@ -87,6 +92,8 @@ function getWeatherData(result: WeatherApiResponse) {
     },
   };
 }
+
+export type WeatherData = NonNullable<ReturnType<typeof getWeatherData>>;
 
 export function fetchWeatherData() {
   return fetchWeatherApi(url, params)

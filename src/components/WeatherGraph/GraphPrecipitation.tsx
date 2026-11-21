@@ -1,117 +1,83 @@
-import { useMemo } from 'react';
+import { HourPoint, isSnow } from '../../util/weather/selectors';
+import { PLOT } from './constants';
+import { Scale } from './types';
+import { pointOnCubic, sampleCurves, smoothCurves } from './util';
 
-import { Point, PrecipitationPoint, Range, Scaler } from './types';
+interface Props {
+  points: HourPoint[];
+  x: Scale;
+  chanceY: Scale;
+}
 
-const rangeCap = (y: number, yRange: Range, scaler: Scaler) => {
-  const minY = scaler.y(yRange.min);
-  if (y > minY) return minY;
+const RAIN_COLOR = '#8fc3ff';
+const SNOW_COLOR = '#ffffff';
 
-  const maxY = scaler.y(yRange.max);
-  if (y < maxY) return maxY;
+/** Dot spacing and radius */
+const SPACING = 14;
+const RADIUS = 2.6;
 
-  return y;
-};
+/** The ribbon is drawn in short pieces of varying thickness */
+const RIBBON_STEP = 3;
+const RIBBON_OPACITY = 0.28;
 
-export function GraphPrecipitation({
-  xRange,
-  yRange,
-  data,
-  scaler,
-}: {
-  xRange: Range;
-  yRange: Range;
-  data: PrecipitationPoint[];
-  scaler: Scaler;
-}) {
-  const curveStrength = 0.33;
-  const precipitationChance = useMemo(() => {
-    const points: Point[] = [];
-    if (xRange && yRange) {
-      for (let i = 0; i < data.length; i++) {
-        const value: PrecipitationPoint = data[i];
-        const x: number = scaler.x((value.x - xRange.min) / (xRange.max - xRange.min));
-        const y: number = scaler.y((value.y - yRange.min) / (yRange.max - yRange.min));
-        points.push({ x: x, y: y });
-      }
-    }
+const colorOf = (point: HourPoint) => (isSnow(point) ? SNOW_COLOR : RAIN_COLOR);
 
-    let string = `M ${points[0].x} ${points[0].y}`;
-    for (let i = 1; i < points.length; i++) {
-      const from = points[i - 1];
-      const to = points[i];
-      const before = i === 1 ? points[0] : points[i - 2];
-      const after = i + 1 === points.length ? points[i] : points[i + 1];
+/** At least as thick as the dots (+10%), growing with the square root of the amount */
+const MAX_RIBBON = 48;
+const ribbonWidth = (mm: number) => Math.min(MAX_RIBBON, RADIUS * 2 * 1.1 + 20 * Math.sqrt(mm));
 
-      const deltaFrom: number = (to.y - before.y) * curveStrength;
-      const deltaTo: number = (after.y - from.y) * curveStrength;
+/** A dotted line for the chance of precipitation, on a ribbon as thick as the amount */
+export function GraphPrecipitation({ points, x, chanceY }: Props) {
+  const curves = smoothCurves(
+    points.map((point) => ({ x: x(point.time), y: chanceY(point.precipProbability) })),
+    { top: PLOT.top, bottom: PLOT.bottom },
+  );
 
-      const px0: number = from.x * (1 - curveStrength) + to.x * curveStrength;
-      const px1: number = from.x * curveStrength + to.x * (1 - curveStrength);
-      const py0: number = rangeCap(from.y + deltaFrom, yRange, scaler);
-      const py1: number = rangeCap(to.y - deltaTo, yRange, scaler);
+  // Averaged with neighbouring hours, so the ribbon is not lumpy
+  const amounts = points.map((point, i) => {
+    const [before, after] = [
+      points[Math.max(0, i - 1)],
+      points[Math.min(points.length - 1, i + 1)],
+    ];
+    return (before.precipitation + 2 * point.precipitation + after.precipitation) / 4;
+  });
 
-      string += ` C ${px0} ${py0} ${px1} ${py1} ${to.x} ${to.y}`;
-    }
+  const widthCurves = smoothCurves(
+    points.map((point, i) => ({ x: x(point.time), y: ribbonWidth(amounts[i]) })),
+    { top: 0, bottom: MAX_RIBBON },
+  );
+  const widthAt = (segment: number, t: number) => pointOnCubic(widthCurves[segment], t).y;
 
-    return string;
-  }, [data, xRange, yRange, scaler]);
-
-  const precipitationIntensity = useMemo(() => {
-    const top: Point[] = [];
-    const bottom: Point[] = [];
-
-    if (xRange && yRange) {
-      for (let i = 0; i < data.length; i++) {
-        const value: PrecipitationPoint = data[i];
-        const h: number = Math.round(value.h * 20);
-        const x: number = scaler.x((value.x - xRange.min) / (xRange.max - xRange.min));
-        const yBottom: number =
-          scaler.y((value.y - yRange.min) / (yRange.max - yRange.min)) - h / 2;
-        const yTop: number = yBottom + h;
-        top.push({ x: x, y: yTop });
-        bottom.push({ x: x, y: yBottom });
-      }
-    }
-
-    bottom.reverse();
-
-    let string = `M ${top[0].x} ${top[0].y}`;
-    for (let i = 1; i < top.length; i++) {
-      const from = top[i - 1];
-      const to = top[i];
-      const before = i === 1 ? top[0] : top[i - 2];
-      const after = i + 1 === top.length ? top[i] : top[i + 1];
-
-      const deltaFrom: number = (to.y - before.y) * curveStrength;
-      const deltaTo: number = (after.y - from.y) * curveStrength;
-
-      const ph0: number = from.x * (1 - curveStrength) + to.x * curveStrength;
-      const ph1: number = from.x * curveStrength + to.x * (1 - curveStrength);
-
-      string += ` C ${ph0} ${from.y + deltaFrom} ${ph1} ${to.y - deltaTo} ${to.x} ${to.y}`;
-    }
-    for (let i = 1; i < bottom.length; i++) {
-      const from = bottom[i - 1];
-      const to = bottom[i];
-      const before = i === 1 ? bottom[0] : bottom[i - 2];
-      const after = i + 1 === bottom.length ? bottom[i] : bottom[i + 1];
-
-      const deltaFrom: number = (to.y - before.y) * curveStrength;
-      const deltaTo: number = (after.y - from.y) * curveStrength;
-
-      const ph0: number = from.x * (1 - curveStrength) + to.x * curveStrength;
-      const ph1: number = from.x * curveStrength + to.x * (1 - curveStrength);
-
-      string += ` C ${ph0} ${from.y + deltaFrom} ${ph1} ${to.y - deltaTo} ${to.x} ${to.y}`;
-    }
-
-    return string;
-  }, [data, scaler, xRange, yRange]);
+  // At 0% the line lies on the axis; draw nothing there
+  const isDry = (y: number) => y > PLOT.bottom - 0.5;
+  const nearest = (segment: number, t: number) => points[t < 0.5 ? segment : segment + 1];
 
   return (
-    <g id="Precipitation">
-      <path d={precipitationChance} stroke="#369" strokeWidth="2" fill="transparent" />
-      <path d={precipitationIntensity} fill="rgba(51, 102, 153, 0.5)" />
+    <g>
+      {/* Opaque overlapping pieces, made see-through together so the overlaps don't show */}
+      <g opacity={RIBBON_OPACITY} strokeLinecap="round">
+        {sampleCurves(curves, RIBBON_STEP).map(({ x: cx, y: cy, segment, t }, index, all) => {
+          const next = all[index + 1];
+          if (!next || (isDry(cy) && isDry(next.y))) return null;
+          return (
+            <line
+              key={index}
+              x1={cx}
+              y1={cy}
+              x2={next.x}
+              y2={next.y}
+              stroke={colorOf(nearest(segment, t))}
+              strokeWidth={widthAt(segment, t)}
+            />
+          );
+        })}
+      </g>
+
+      {sampleCurves(curves, SPACING).map(({ x: cx, y: cy, segment, t }, index) =>
+        isDry(cy) ? null : (
+          <circle key={index} cx={cx} cy={cy} r={RADIUS} fill={colorOf(nearest(segment, t))} />
+        ),
+      )}
     </g>
   );
 }

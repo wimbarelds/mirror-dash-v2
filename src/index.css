@@ -1,1 +1,22 @@
 @import 'tailwindcss';
+
+@theme {
+  /* Roboto where installed; Piboto is Roboto-based and ships with Raspberry Pi OS (incl. Thin/Light) */
+  --font-sans: Roboto, Piboto, system-ui, sans-serif;
+  --color-rain: #8fc3ff;
+  --color-ice: #7fe3ff;
+}
+
+@layer base {
+  html {
+    /*
+     * 1rem is 16px on a 1920x1080 screen. Every rem-based size (including all of Tailwind's) scales
+     * with the screen, based on whichever of width or height is the limiting side.
+     */
+    font-size: min(calc(100vw / 120), calc(100vh / 67.5));
+  }
+
+  body {
+    font-variant-numeric: tabular-nums;
+  }
+}

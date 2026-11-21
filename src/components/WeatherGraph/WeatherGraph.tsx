@@ -1,151 +1,108 @@
-import { useMemo } from 'react';
-
-import { margins } from './constants';
+import { formatHour } from '../../util/time';
+import { HourPoint } from '../../util/weather/selectors';
+import { HOUR_LABEL_Y, PLOT, VIEW } from './constants';
+import { GraphIce } from './GraphIce';
 import { GraphPrecipitation } from './GraphPrecipitation';
 import { GraphTemperature } from './GraphTemperature';
-import { Point, Range, DataPoint, PrecipitationPoint } from './types';
-import { getScaler, getXRangeValues, getYRange1Values, getYRange2Values } from './util';
+import { getTemperatureAxis, linearScale } from './util';
 
 interface Props {
-  datapoints: DataPoint[];
-  size: Point;
+  points: HourPoint[];
+  now: number;
 }
 
-export function WeatherGraph({ datapoints, size }: Props) {
-  const scaler = useMemo(() => getScaler(size, margins), [size]);
-  const { yRange1, yRange2, xRange, temperature, precipitation } = useMemo((): {
-    yRange1: Range;
-    yRange2: Range;
-    xRange: Range;
-    temperature: Point[];
-    precipitation: PrecipitationPoint[];
-  } => {
-    const hours: DataPoint[] = datapoints.slice();
-    const temperatureValues: number[] = [];
-    const precipitationProbability: number[] = [];
-    const times: number[] = [];
-    const newTemperature: Point[] = [];
-    const newPrecipitation: PrecipitationPoint[] = [];
-    hours.forEach((hour) => {
-      if (hour && hour.temperature) temperatureValues.push(hour.temperature);
-      if (hour && hour.precipProbability) precipitationProbability.push(hour.precipProbability);
-      if (hour && hour.time) times.push(hour.time);
-      if (hour && hour.temperature && hour.time)
-        newTemperature.push({ x: hour.time, y: hour.temperature });
-      if (hour && hour.time) {
-        newPrecipitation.push({
-          x: hour.time,
-          y: hour.precipProbability ?? 0,
-          h: hour.precipIntensity ?? 0,
-        });
-      }
-    });
-    return {
-      yRange1: getYRange1Values(temperatureValues),
-      yRange2: getYRange2Values(precipitationProbability),
-      xRange: getXRangeValues(times),
-      temperature: newTemperature,
-      precipitation: newPrecipitation,
-    };
-  }, [datapoints]);
+const CLIP_ID = 'plot-clip';
 
-  const xPoints = useMemo(
-    () =>
-      xRange.range.map((rangePoint) => ({
-        ...rangePoint,
-        pos: scaler.x((rangePoint.value - xRange.min) / (xRange.max - xRange.min)),
-      })),
-    [scaler, xRange.max, xRange.min, xRange.range],
-  );
+/** The next 24 hours: temperature (left axis) with chance and amount of rain (right axis) */
+export function WeatherGraph({ points, now }: Props) {
+  if (points.length < 2) return null;
 
-  const yPoints1 = useMemo(
-    () =>
-      yRange1.range.map((rangePoint) => ({
-        ...rangePoint,
-        pos: scaler.y((rangePoint.value - yRange1.min) / (yRange1.max - yRange1.min)),
-      })),
-    [scaler, yRange1.max, yRange1.min, yRange1.range],
-  );
-
-  const yPoints2 = useMemo(
-    () =>
-      yRange2.range.map((rangePoint) => ({
-        ...rangePoint,
-        pos: scaler.y((rangePoint.value - yRange2.min) / (yRange2.max - yRange2.min)),
-      })),
-    [scaler, yRange2.max, yRange2.min, yRange2.range],
-  );
-
-  const height = size.y - margins.y * 2;
-  const width = size.x - margins.x * 2;
+  const x = linearScale(points[0].time, points[points.length - 1].time, PLOT.left, PLOT.right);
+  const axis = getTemperatureAxis(points.map((point) => point.temperature));
+  const y = linearScale(axis.min, axis.max, PLOT.bottom, PLOT.top);
+  const chanceY = linearScale(0, 100, PLOT.bottom, PLOT.top);
 
   return (
-    <div className="weather-graph">
-      <svg width="100%" height="240">
-        <g id="yRange1">
-          {yPoints1.map((yPoint) => (
-            <text
-              key={yPoint.value}
-              x={margins.x - 5}
-              y={yPoint.pos}
-              fill="#FF7"
-              textAnchor="end"
-              dominantBaseline="middle"
-            >
-              {yPoint.text}
-            </text>
-          ))}
-        </g>
-        <g id="yRange2">
-          {yPoints2.map((yPoint) => (
-            <text
-              key={yPoint.value}
-              x={size.x - margins.x + 5}
-              y={yPoint.pos}
-              fill="#ACF"
-              textAnchor="start"
-              dominantBaseline="middle"
-            >
-              {yPoint.text}
-            </text>
-          ))}
-        </g>
-        <g id="xRange">
-          {xPoints.map((xPoint) => (
-            <text
-              key={xPoint.value}
-              x={xPoint.pos}
-              y={size.y - margins.y + 10}
-              fill="#FFF"
-              textAnchor="middle"
-              dominantBaseline="hanging"
-            >
-              {xPoint.text}
-            </text>
-          ))}
-        </g>
-        {temperature.length && (
-          <GraphTemperature xRange={xRange} yRange={yRange1} data={temperature} scaler={scaler} />
-        )}
-        {precipitation.length && (
-          <GraphPrecipitation
-            xRange={xRange}
-            yRange={yRange2}
-            data={precipitation}
-            scaler={scaler}
+    <svg
+      viewBox={`0 0 ${VIEW.width} ${VIEW.height}`}
+      className="block h-auto w-full font-light"
+      aria-hidden="true"
+    >
+      <defs>
+        <clipPath id={CLIP_ID}>
+          <rect
+            x={PLOT.left}
+            y={PLOT.top - 26}
+            width={PLOT.right - PLOT.left}
+            height={PLOT.bottom - PLOT.top + 26}
           />
-        )}
-        <path
-          d={`
-            M ${margins.x} ${margins.y}
-            l 0 ${height}
-            l ${width} 0
-            l 0 -${height}`}
-          stroke="#FFF"
-          strokeWidth="2"
-          fill="transparent"
-        />
-      </svg>
-    </div>
+        </clipPath>
+      </defs>
+
+      <g stroke="white" strokeOpacity=".35" strokeWidth="2">
+        <line x1={PLOT.left} x2={PLOT.left} y1={PLOT.top} y2={PLOT.bottom} />
+        <line x1={PLOT.right} x2={PLOT.right} y1={PLOT.top} y2={PLOT.bottom} />
+        <line x1={PLOT.left} x2={PLOT.right} y1={PLOT.bottom} y2={PLOT.bottom} />
+      </g>
+
+      {axis.ticks.map((tick) => (
+        <g key={tick}>
+          <line
+            x1={PLOT.left}
+            x2={PLOT.right}
+            y1={y(tick)}
+            y2={y(tick)}
+            stroke="white"
+            strokeOpacity=".1"
+          />
+          <text
+            x={PLOT.left - 10}
+            y={y(tick) + 7}
+            fontSize="20"
+            textAnchor="end"
+            fill="white"
+            fillOpacity=".6"
+          >
+            {tick}°
+          </text>
+        </g>
+      ))}
+
+      {[0, 50, 100].map((chance) => (
+        <text
+          key={chance}
+          x={PLOT.right + 10}
+          y={chanceY(chance) + 7}
+          fontSize="20"
+          fill="#8fc3ff"
+          fillOpacity=".7"
+        >
+          {chance}%
+        </text>
+      ))}
+
+      <g clipPath={`url(#${CLIP_ID})`}>
+        <GraphPrecipitation points={points} x={x} chanceY={chanceY} />
+      </g>
+      <GraphIce points={points} x={x} />
+      <GraphTemperature points={points} now={now} x={x} y={y} />
+
+      {points.map(
+        (point) =>
+          new Date(point.time).getHours() % 3 === 0 && (
+            <text
+              key={point.time}
+              x={x(point.time)}
+              y={HOUR_LABEL_Y}
+              fontSize="22"
+              textAnchor="middle"
+              fill="white"
+              fillOpacity=".55"
+            >
+              {formatHour(point.time)}
+            </text>
+          ),
+      )}
+    </svg>
   );
 }

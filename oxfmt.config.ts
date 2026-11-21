@@ -1,6 +1,6 @@
-import { defineConfig } from 'oxfmt';
+import type { OxfmtConfig } from 'vite-plus/fmt';
 
-export default defineConfig({
+export default {
   tabWidth: 2,
   useTabs: false,
   trailingComma: 'all',
@@ -18,4 +18,4 @@ export default defineConfig({
     preserveWhitespace: true,
     stylesheet: './src/index.css',
   },
-});
+} satisfies OxfmtConfig;

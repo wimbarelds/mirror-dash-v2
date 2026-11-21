@@ -1,17 +1,16 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
-import { z } from 'zod';
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
+import clsx from 'clsx';
+import { ReactNode, useEffect, useReducer } from 'react';
 
-import BusIcon from '../assets/Bus_stop_symbol.svg';
-import { FETCH_INTERVAL, FILTER_MAX_TIME_ELAPSED } from '../util/ov/constants';
-import { getOVData } from '../util/ov/fetch-ov';
+import { useDataSources } from '../data-sources';
+import { FETCH_INTERVAL, FILTER_MAX_TIME_ELAPSED, MAX_BUSSES } from '../util/ov/constants';
 import { isOVCorsError } from '../util/ov/ov-cors-error';
-import { TimingPointSchema } from '../util/ov/schema';
+import { TimingPoint } from '../util/ov/schema';
+import { formatTime } from '../util/time';
 
-type DataRaw = z.infer<typeof TimingPointSchema>;
 type BusPass = ReturnType<typeof mapBusPass>[number];
 
-function mapBusPass(data: DataRaw) {
+function mapBusPass(data: TimingPoint, now: number) {
   return Object.entries(data.Passes)
     .map(([id, pass]) => ({ Id: id, ...pass }))
     .sort((a, b) => a.ExpectedArrivalTime.localeCompare(b.ExpectedArrivalTime))
@@ -22,96 +21,115 @@ function mapBusPass(data: DataRaw) {
       TargetArrivalTime: new Date(bus.TargetArrivalTime),
       TargetDepartureTime: new Date(bus.TargetDepartureTime),
     }))
-    .filter((item) => item.ExpectedDepartureTime.getTime() > Date.now());
+    .filter((item) => item.ExpectedDepartureTime.getTime() > now)
+    .slice(0, MAX_BUSSES);
 }
 
 function timeDiff(diff: number) {
   const seconds = Math.floor(diff / 1000);
   const minutes = Math.floor(seconds / 60);
   const hours = Math.floor(minutes / 60);
-  if (seconds < 100) return `${seconds} seconden`;
-  if (minutes < 100) return `${minutes} minuten`;
-  return `${hours} uur`;
-}
-
-function formatTime(date: Date) {
-  const formatter = new Intl.DateTimeFormat(import.meta.env.VITE_LOCALE, {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-  return formatter.format(date);
+  if (seconds < 100) return { value: seconds, unit: 'sec' };
+  if (minutes < 100) return { value: minutes, unit: 'min' };
+  return { value: hours, unit: 'uur' };
 }
 
 function getRiskClass(timeLeft: number) {
-  if (timeLeft < 90000) return 'text-red-500 font-bold';
-  if (timeLeft < 5 * 60 * 1000) return 'text-orange-500 font-bold';
+  if (timeLeft < 90000) return 'text-red-500';
+  if (timeLeft < 5 * 60 * 1000) return 'text-orange-500';
   if (timeLeft < 15 * 60 * 1000) return 'text-yellow-500';
   if (timeLeft > 60 * 60 * 1000) return 'text-white opacity-50';
   return 'text-white';
 }
 
-const getTimeLeft = (departure: Date) => departure.getTime() - Date.now();
-
-function Bus({ ExpectedDepartureTime }: BusPass) {
-  const [timeLeft, setTimeleft] = useState(() => getTimeLeft(ExpectedDepartureTime));
+function Bus({
+  ExpectedDepartureTime,
+  LinePublicNumber,
+  DestinationName50,
+  next,
+}: BusPass & { next: boolean }) {
+  const { now } = useDataSources();
+  const [, refresh] = useReducer((count: number) => count + 1, 0);
+  const timeLeft = ExpectedDepartureTime.getTime() - now();
 
   useEffect(() => {
     let delay = 60 * 60 * 1000; // 1 hour
-    if (timeLeft < 100 * 1000)
-      delay = (timeLeft % 1000) + 1; // < 100s = next second
-    else if (timeLeft < 100 * 60000)
-      delay = (timeLeft % 60000) + 1; // <100m = next minute
+    if (timeLeft < 100 * 1000) delay = (timeLeft % 1000) + 1; // < 100s = next second
+    else if (timeLeft < 100 * 60000) delay = (timeLeft % 60000) + 1; // <100m = next minute
     else delay = (timeLeft % 3600000) + 1; // >100m = next hour
 
-    const timeout = setTimeout(() => setTimeleft(() => getTimeLeft(ExpectedDepartureTime)), delay);
+    const timeout = setTimeout(refresh, delay);
     return () => clearTimeout(timeout);
-  }, [ExpectedDepartureTime, timeLeft]);
-
-  const { riskClassName, timeStr, remainingStr } = useMemo(() => {
-    return {
-      riskClassName: getRiskClass(timeLeft),
-      timeStr: formatTime(ExpectedDepartureTime),
-      remainingStr: timeDiff(timeLeft),
-    };
-  }, [timeLeft, ExpectedDepartureTime]);
+  }, [timeLeft]);
 
   if (timeLeft < FILTER_MAX_TIME_ELAPSED) return null;
 
+  const riskClassName = getRiskClass(timeLeft);
+  const remaining = timeDiff(timeLeft);
+
   return (
-    <div className={`${riskClassName} flex items-center gap-2 text-4xl text-nowrap`}>
-      <img src={BusIcon} alt="" className="w-[60px]" />
-      <div className="w-[10ch] text-center">{timeStr}</div>
-      <div>{remainingStr}</div>
+    <div className={clsx(riskClassName, 'flex items-center gap-7 text-nowrap')}>
+      <span className="flex h-16 min-w-16 items-center justify-center rounded-2xl border-[3px] px-2 text-[2.125rem] font-normal">
+        {LinePublicNumber}
+      </span>
+      <span className="min-w-[10.625rem] text-[2.125rem] text-white/70">{DestinationName50}</span>
+      <span className="w-[6.875rem] text-right text-[2.125rem] text-white/55">
+        {formatTime(ExpectedDepartureTime)}
+      </span>
+      <span
+        className={clsx(
+          'w-[16.25rem] text-right',
+          next ? 'text-[5.75rem] font-normal' : 'text-6xl',
+        )}
+      >
+        {remaining.value}
+        <small className="ml-2.5 text-[.42em] opacity-70">{remaining.unit}</small>
+      </span>
     </div>
   );
 }
 
+function Message({ children }: { children: ReactNode }) {
+  return <p className="text-[1.75rem] font-light text-white/50">{children}</p>;
+}
+
 export function Bussen() {
+  const { key, live, now, fetchBusses } = useDataSources();
+  const queryKey = ['ovdata', key];
   const queryClient = useQueryClient();
-  const corsBlocked = isOVCorsError(queryClient.getQueryState(['ovdata'])?.error);
+  const corsBlocked = isOVCorsError(queryClient.getQueryState(queryKey)?.error);
 
   const {
     isLoading,
     isError,
     data: bussen,
   } = useQuery({
-    queryKey: ['ovdata'],
-    queryFn: getOVData,
-    enabled: !corsBlocked, // Avoid retry for CORS error
-    retry: (failureCount, error) => !isOVCorsError(error) && failureCount < 3,
-    refetchInterval: FETCH_INTERVAL, // 2 minuten
+    queryKey,
+    queryFn: fetchBusses,
+    enabled: !corsBlocked,
+    retry: (failureCount, error) => live && !isOVCorsError(error) && failureCount < 3,
+    refetchInterval: FETCH_INTERVAL,
     refetchIntervalInBackground: true,
-    staleTime: FETCH_INTERVAL, // 2 minuten
-    select: (data) => mapBusPass(data),
+    staleTime: FETCH_INTERVAL,
+    // Mock data changes the key for every moment; keep showing the last one meanwhile
+    placeholderData: keepPreviousData,
+    select: (data) => mapBusPass(data, now()),
   });
 
-  if (corsBlocked) return 'OV-data kan niet worden opgehaald: geblokkeerd door CORS';
+  if (corsBlocked)
+    return <Message>OV-data kan niet worden opgehaald: geblokkeerd door CORS</Message>;
 
   if (!bussen) {
-    if (isError) return 'Er is een fout opgetreden bij het ophalen van de data';
-    if (isLoading) return 'Bezig met ophalen van bus-ritten';
-    return 'Geen error, maar ook geen data...';
+    if (isError) return <Message>Er is een fout opgetreden bij het ophalen van de data</Message>;
+    if (isLoading) return <Message>Bezig met ophalen van bus-ritten</Message>;
+    return <Message>Geen error, maar ook geen data...</Message>;
   }
 
-  return bussen.map((bus) => <Bus key={bus.Id} {...bus} />);
+  return (
+    <div className="flex flex-col items-end gap-[1.875rem]">
+      {bussen.map((bus, index) => (
+        <Bus key={bus.Id} next={index === 0} {...bus} />
+      ))}
+    </div>
+  );
 }

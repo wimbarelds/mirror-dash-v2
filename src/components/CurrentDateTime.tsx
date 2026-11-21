@@ -1,39 +1,21 @@
-import { useEffect, useState } from 'react';
+import { formatTime } from '../util/time';
+import { useNow } from '../util/use-now';
 
-function getTime(date: Date) {
-  const formatter = Intl.DateTimeFormat(import.meta.env.VITE_LOCALE, {
-    hour: 'numeric',
-    minute: '2-digit',
-  });
-  return formatter.format(date);
-}
-
-function getDate(date: Date) {
-  const formatter = Intl.DateTimeFormat(import.meta.env.VITE_LOCALE, {
-    dateStyle: 'full',
-  });
-  return formatter.format(date);
-}
+const dateFormat = new Intl.DateTimeFormat(import.meta.env.VITE_LOCALE, {
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+});
 
 export function CurrentDateTime() {
-  const [now, setNow] = useState(new Date());
-
-  useEffect(() => {
-    const nextMinute = new Date(now.getTime());
-    nextMinute.setMilliseconds(0);
-    nextMinute.setSeconds(0);
-    nextMinute.setMinutes(nextMinute.getMinutes() + 1);
-    const delay = nextMinute.getTime() - now.getTime();
-
-    const timeout = setTimeout(() => setNow(new Date()), delay);
-
-    return () => clearTimeout(timeout);
-  }, [now]);
+  const now = useNow();
 
   return (
-    <div className="flex flex-col items-end">
-      <div className="text-3xl">{getDate(now)}</div>
-      <div className="text-8xl">{getTime(now)}</div>
+    <div>
+      <div className="text-[13.75rem] leading-none font-extralight tracking-tighter">
+        {formatTime(now)}
+      </div>
+      <div className="mt-1.5 text-[2.75rem] font-light text-white/60">{dateFormat.format(now)}</div>
     </div>
   );
 }

@@ -1,7 +1,5 @@
-/**
- * Thrown when the OV API is reachable but the browser refuses to hand us its response because of CORS.
- */
-class OVCorsError extends Error {
+/** The OV API is reachable, but the browser blocked its response because of CORS */
+export class OVCorsError extends Error {
   readonly cause: unknown;
 
   constructor(cause?: unknown) {
@@ -11,7 +9,7 @@ class OVCorsError extends Error {
   }
 }
 
-/** Checks if the URL is reachable without CORS */
+/** Whether the URL answers when CORS is not enforced */
 function isUrlReachable(url: string) {
   return fetch(url, {
     mode: 'no-cors',
@@ -23,10 +21,7 @@ function isUrlReachable(url: string) {
   );
 }
 
-/**
- * Browsers don't tell scripts if a failed request is due to a CORS error.
- * We detect CORS errors so we can avoid retrying continuously.
- */
+/** Browsers don't report CORS errors to scripts, so detect them to avoid retrying forever */
 export async function handleFetchError(url: string, error: unknown): Promise<never> {
   if (error instanceof TypeError && (await isUrlReachable(url))) throw new OVCorsError(error);
   throw error;

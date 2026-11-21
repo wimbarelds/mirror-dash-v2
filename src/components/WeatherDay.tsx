@@ -1,24 +1,7 @@
+import { DAY } from '../util/time';
+import { useNow } from '../util/use-now';
+import { formatPrecipitation, formatTemperature, getDaySummary } from '../util/weather/selectors';
 import { useWeatherData } from '../util/weather/use-weather-data';
-import { getWeatherCodeInfo } from '../util/weather/weather-code-utils';
-
-function getToday() {
-  const date = new Date();
-  date.setHours(12, 0, 0, 0);
-  return date;
-}
-
-function getDayOffsetDate(offset: number) {
-  const date = getToday();
-  date.setDate(date.getDate() + offset);
-  return date;
-}
-
-function sameDay(d1: Date, d2: Date) {
-  if (d1.getFullYear() !== d2.getFullYear()) return false;
-  if (d1.getMonth() !== d2.getMonth()) return false;
-  if (d1.getDate() !== d2.getDate()) return false;
-  return true;
-}
 
 function getDayText(offset: number) {
   if (!offset) return 'Vandaag';
@@ -32,46 +15,25 @@ interface Props {
 
 export function WeatherDay({ dayOffset = 0 }: Props) {
   const { data } = useWeatherData();
-  const date = getDayOffsetDate(dayOffset);
-
-  if (!data) return 'No data!';
-  const dayIndex = data.daily.time.findIndex((item) => sameDay(date, item));
-  type Key = keyof typeof data.daily;
-  const keys = Object.keys(data.daily) as Key[];
-  const {
-    precipitation_probability_max,
-    precipitation_sum,
-    temperature_2m_min,
-    temperature_2m_max,
-    weather_code,
-  } = keys.reduce((obj, key) => ({ ...obj, [key]: data.daily[key][dayIndex] }), {}) as Record<
-    Key,
-    number
-  >;
-  const { description, image } = getWeatherCodeInfo(weather_code);
+  const now = useNow().getTime();
+  const summary = data ? getDaySummary(data, now + dayOffset * DAY) : null;
 
   return (
-    <section className="flex w-[150px] flex-col items-center px-4">
-      <h3 className="text-center text-2xl">{getDayText(dayOffset)}</h3>
-      <div className="flex items-center">
-        <img src={image} alt="" className="w-[50px]" />
-        <p className="flex-1">{description}</p>
-      </div>
-      <div className="flex flex-col">
-        <div className="flex gap-3">
-          <span>🌡</span>
-          <p>{Math.round(temperature_2m_max * 10) / 10}&deg;</p>
-          <p>{Math.round(temperature_2m_min * 10) / 10}&deg;</p>
-        </div>
-        <div className="flex gap-3">
-          <span>💧</span>
-          <p>{Math.round(precipitation_probability_max * 10) / 10}%</p>
-          <p>
-            {Math.round(precipitation_sum)}
-            <span className="pl-0.5 text-[.6rem]">mm</span>
+    <section className="min-w-40">
+      <h3 className="text-[1.625rem] text-white/60">{getDayText(dayOffset)}</h3>
+      {summary ? (
+        <>
+          <p className="text-[1.875rem]">
+            {formatTemperature(summary.max)}{' '}
+            <span className="text-white/60">/ {formatTemperature(summary.min)}</span>
           </p>
-        </div>
-      </div>
+          <p className="text-[1.625rem] text-rain">
+            {Math.round(summary.precipProbability)}% · {formatPrecipitation(summary.precipitation)}
+          </p>
+        </>
+      ) : (
+        <p className="text-[1.875rem] text-white/40">–</p>
+      )}
     </section>
   );
 }

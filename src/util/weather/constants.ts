@@ -1,6 +1,17 @@
-interface Info {
+export type WeatherIconKind =
+  | 'clear-day'
+  | 'clear-night'
+  | 'partly-day'
+  | 'partly-night'
+  | 'cloudy'
+  | 'fog'
+  | 'rain'
+  | 'snow'
+  | 'thunder';
+
+export interface Info {
   description: string;
-  image: string;
+  icon: WeatherIconKind;
 }
 
 interface CodeItem {
@@ -8,285 +19,55 @@ interface CodeItem {
   night: Info;
 }
 
+const always = (description: string, icon: WeatherIconKind): CodeItem => ({
+  day: { description, icon },
+  night: { description, icon },
+});
+
+// WMO weather interpretation codes, as returned by Open-Meteo
 export const weather_code_info: Record<number, CodeItem> = {
-  '0': {
-    day: {
-      description: 'Zonnig',
-      image: 'https://openweathermap.org/img/wn/01d@2x.png',
-    },
-    night: {
-      description: 'Helder',
-      image: 'https://openweathermap.org/img/wn/01n@2x.png',
-    },
+  0: {
+    day: { description: 'Zonnig', icon: 'clear-day' },
+    night: { description: 'Helder', icon: 'clear-night' },
   },
-  '1': {
-    day: {
-      description: 'Voornamelijk Zonnig',
-      image: 'https://openweathermap.org/img/wn/01d@2x.png',
-    },
-    night: {
-      description: 'Voornamelijk Helder',
-      image: 'https://openweathermap.org/img/wn/01n@2x.png',
-    },
+  1: {
+    day: { description: 'Voornamelijk zonnig', icon: 'clear-day' },
+    night: { description: 'Voornamelijk helder', icon: 'clear-night' },
   },
-  '2': {
-    day: {
-      description: 'Gedeeltelijk Bewolkt',
-      image: 'https://openweathermap.org/img/wn/02d@2x.png',
-    },
-    night: {
-      description: 'Gedeeltelijk Bewolkt',
-      image: 'https://openweathermap.org/img/wn/02n@2x.png',
-    },
+  2: {
+    day: { description: 'Gedeeltelijk bewolkt', icon: 'partly-day' },
+    night: { description: 'Gedeeltelijk bewolkt', icon: 'partly-night' },
   },
-  '3': {
-    day: {
-      description: 'Bewolkt',
-      image: 'https://openweathermap.org/img/wn/03d@2x.png',
-    },
-    night: {
-      description: 'Bewolkt',
-      image: 'https://openweathermap.org/img/wn/03n@2x.png',
-    },
-  },
-  '45': {
-    day: {
-      description: 'Mistig',
-      image: 'https://openweathermap.org/img/wn/50d@2x.png',
-    },
-    night: {
-      description: 'Mistig',
-      image: 'https://openweathermap.org/img/wn/50n@2x.png',
-    },
-  },
-  '48': {
-    day: {
-      description: 'Bevroren Mist',
-      image: 'https://openweathermap.org/img/wn/50d@2x.png',
-    },
-    night: {
-      description: 'Bevroren Mist',
-      image: 'https://openweathermap.org/img/wn/50n@2x.png',
-    },
-  },
-  '51': {
-    day: {
-      description: 'Lichte Motregen',
-      image: 'https://openweathermap.org/img/wn/09d@2x.png',
-    },
-    night: {
-      description: 'Lichte Motregen',
-      image: 'https://openweathermap.org/img/wn/09n@2x.png',
-    },
-  },
-  '53': {
-    day: {
-      description: 'Motregen',
-      image: 'https://openweathermap.org/img/wn/09d@2x.png',
-    },
-    night: {
-      description: 'Motregen',
-      image: 'https://openweathermap.org/img/wn/09n@2x.png',
-    },
-  },
-  '55': {
-    day: {
-      description: 'Zware Motregen',
-      image: 'https://openweathermap.org/img/wn/09d@2x.png',
-    },
-    night: {
-      description: 'Zware Motregen',
-      image: 'https://openweathermap.org/img/wn/09n@2x.png',
-    },
-  },
-  '56': {
-    day: {
-      description: 'Lichte Onderkoelde Motregen',
-      image: 'https://openweathermap.org/img/wn/09d@2x.png',
-    },
-    night: {
-      description: 'Lichte Onderkoelde Motregen',
-      image: 'https://openweathermap.org/img/wn/09n@2x.png',
-    },
-  },
-  '57': {
-    day: {
-      description: 'Onderkoelde Motregen',
-      image: 'https://openweathermap.org/img/wn/09d@2x.png',
-    },
-    night: {
-      description: 'Onderkoelde Motregen',
-      image: 'https://openweathermap.org/img/wn/09n@2x.png',
-    },
-  },
-  '61': {
-    day: {
-      description: 'Lichte Regen',
-      image: 'https://openweathermap.org/img/wn/10d@2x.png',
-    },
-    night: {
-      description: 'Lichte Regen',
-      image: 'https://openweathermap.org/img/wn/10n@2x.png',
-    },
-  },
-  '63': {
-    day: {
-      description: 'Regen',
-      image: 'https://openweathermap.org/img/wn/10d@2x.png',
-    },
-    night: {
-      description: 'Regen',
-      image: 'https://openweathermap.org/img/wn/10n@2x.png',
-    },
-  },
-  '65': {
-    day: {
-      description: 'Zware Regen',
-      image: 'https://openweathermap.org/img/wn/10d@2x.png',
-    },
-    night: {
-      description: 'Zware Regen',
-      image: 'https://openweathermap.org/img/wn/10n@2x.png',
-    },
-  },
-  '66': {
-    day: {
-      description: 'Lichte Ijzelregen',
-      image: 'https://openweathermap.org/img/wn/10d@2x.png',
-    },
-    night: {
-      description: 'Lichte Ijzelregen',
-      image: 'https://openweathermap.org/img/wn/10n@2x.png',
-    },
-  },
-  '67': {
-    day: {
-      description: 'Ijzelregen',
-      image: 'https://openweathermap.org/img/wn/10d@2x.png',
-    },
-    night: {
-      description: 'Ijzelregen',
-      image: 'https://openweathermap.org/img/wn/10n@2x.png',
-    },
-  },
-  '71': {
-    day: {
-      description: 'Lichte Sneeuw',
-      image: 'https://openweathermap.org/img/wn/13d@2x.png',
-    },
-    night: {
-      description: 'Lichte Sneeuw',
-      image: 'https://openweathermap.org/img/wn/13n@2x.png',
-    },
-  },
-  '73': {
-    day: {
-      description: 'Sneeuw',
-      image: 'https://openweathermap.org/img/wn/13d@2x.png',
-    },
-    night: {
-      description: 'Sneeuw',
-      image: 'https://openweathermap.org/img/wn/13n@2x.png',
-    },
-  },
-  '75': {
-    day: {
-      description: 'Zware Sneeuw',
-      image: 'https://openweathermap.org/img/wn/13d@2x.png',
-    },
-    night: {
-      description: 'Zware Sneeuw',
-      image: 'https://openweathermap.org/img/wn/13n@2x.png',
-    },
-  },
-  '77': {
-    day: {
-      description: 'Sneeuwkorrels',
-      image: 'https://openweathermap.org/img/wn/13d@2x.png',
-    },
-    night: {
-      description: 'Sneeuwkorrels',
-      image: 'https://openweathermap.org/img/wn/13n@2x.png',
-    },
-  },
-  '80': {
-    day: {
-      description: 'Lichte Regenbuien',
-      image: 'https://openweathermap.org/img/wn/09d@2x.png',
-    },
-    night: {
-      description: 'Lichte Regenbuien',
-      image: 'https://openweathermap.org/img/wn/09n@2x.png',
-    },
-  },
-  '81': {
-    day: {
-      description: 'Regenbuien',
-      image: 'https://openweathermap.org/img/wn/09d@2x.png',
-    },
-    night: {
-      description: 'Regenbuien',
-      image: 'https://openweathermap.org/img/wn/09n@2x.png',
-    },
-  },
-  '82': {
-    day: {
-      description: 'Zware Regenbuien',
-      image: 'https://openweathermap.org/img/wn/09d@2x.png',
-    },
-    night: {
-      description: 'Zware Regenbuien',
-      image: 'https://openweathermap.org/img/wn/09n@2x.png',
-    },
-  },
-  '85': {
-    day: {
-      description: 'Lichte Sneeuwbuien',
-      image: 'https://openweathermap.org/img/wn/13d@2x.png',
-    },
-    night: {
-      description: 'Lichte Sneeuwbuien',
-      image: 'https://openweathermap.org/img/wn/13n@2x.png',
-    },
-  },
-  '86': {
-    day: {
-      description: 'Sneeuwbuien',
-      image: 'https://openweathermap.org/img/wn/13d@2x.png',
-    },
-    night: {
-      description: 'Sneeuwbuien',
-      image: 'https://openweathermap.org/img/wn/13n@2x.png',
-    },
-  },
-  '95': {
-    day: {
-      description: 'Onweer',
-      image: 'https://openweathermap.org/img/wn/11d@2x.png',
-    },
-    night: {
-      description: 'Onweer',
-      image: 'https://openweathermap.org/img/wn/11n@2x.png',
-    },
-  },
-  '96': {
-    day: {
-      description: 'Lichte Onweersbuien Met Hagel',
-      image: 'https://openweathermap.org/img/wn/11d@2x.png',
-    },
-    night: {
-      description: 'Lichte Onweersbuien Met Hagel',
-      image: 'https://openweathermap.org/img/wn/11n@2x.png',
-    },
-  },
-  '99': {
-    day: {
-      description: 'Onweersbuien Met Hagel',
-      image: 'https://openweathermap.org/img/wn/11d@2x.png',
-    },
-    night: {
-      description: 'Onweersbuien Met Hagel',
-      image: 'https://openweathermap.org/img/wn/11n@2x.png',
-    },
-  },
+  3: always('Bewolkt', 'cloudy'),
+  45: always('Mistig', 'fog'),
+  48: always('Bevroren mist', 'fog'),
+  51: always('Lichte motregen', 'rain'),
+  53: always('Motregen', 'rain'),
+  55: always('Zware motregen', 'rain'),
+  56: always('Lichte onderkoelde motregen', 'rain'),
+  57: always('Onderkoelde motregen', 'rain'),
+  61: always('Lichte regen', 'rain'),
+  63: always('Regen', 'rain'),
+  65: always('Zware regen', 'rain'),
+  66: always('Lichte ijzelregen', 'rain'),
+  67: always('Ijzelregen', 'rain'),
+  71: always('Lichte sneeuw', 'snow'),
+  73: always('Sneeuw', 'snow'),
+  75: always('Zware sneeuw', 'snow'),
+  77: always('Sneeuwkorrels', 'snow'),
+  80: always('Lichte regenbuien', 'rain'),
+  81: always('Regenbuien', 'rain'),
+  82: always('Zware regenbuien', 'rain'),
+  85: always('Lichte sneeuwbuien', 'snow'),
+  86: always('Sneeuwbuien', 'snow'),
+  95: always('Onweer', 'thunder'),
+  96: always('Lichte onweersbuien met hagel', 'thunder'),
+  99: always('Onweersbuien met hagel', 'thunder'),
 };
+
+export const SNOW_CODES = new Set([71, 73, 75, 77, 85, 86]);
+
+/** Every code that means something is falling: drizzle, rain, snow, showers and thunderstorms */
+export const PRECIPITATION_CODES = new Set([
+  51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 71, 73, 75, 77, 80, 81, 82, 85, 86, 95, 96, 99,
+]);
