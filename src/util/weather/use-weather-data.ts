@@ -17,7 +17,7 @@ export function useWeatherData() {
     // showing the last good data and let the next interval try again.
     retry: live ? 3 : false,
     retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 60_000),
-    // A replay switches to a new key for every moment: keep showing the previous one meanwhile
+    // The mock data page switches to a new key for every moment: keep showing the previous one meanwhile
     placeholderData: keepPreviousData,
   });
 }

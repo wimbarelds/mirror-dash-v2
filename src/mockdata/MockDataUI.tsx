@@ -2,8 +2,8 @@ import { ReactNode, useEffect, useState } from 'react';
 
 import { BusPanel } from './BusPanel';
 import { ClockPanel } from './ClockPanel';
-import { useReplay } from './replay-context';
-import { ReplayPanel } from './ReplayPanel';
+import { useMockData } from './mockdata-context';
+import { MockDataPanel } from './MockDataPanel';
 import { addDays, Button, HOUR } from './ui';
 import { WeatherPanel } from './WeatherPanel';
 
@@ -28,12 +28,12 @@ const PANELS: {
 ];
 
 /**
- * The replay page's controls: a small button per part of the screen opens a panel for it. Panels
+ * The mock data page's controls: a small button per part of the screen opens a panel for it. Panels
  * can be moved and hidden again; none are open at first. The keyboard moves time: arrows an hour (with Shift a day), space
  * plays, H hides all of it.
  */
-export function ReplayUI() {
-  const { at, setAt, playing, setPlaying } = useReplay();
+export function MockDataUI() {
+  const { at, setAt, playing, setPlaying } = useMockData();
   const [open, setOpen] = useState<Record<PanelId, boolean>>({
     clock: false,
     buses: false,
@@ -79,7 +79,7 @@ export function ReplayUI() {
       </nav>
 
       {PANELS.filter((panel) => open[panel.id]).map((panel) => (
-        <ReplayPanel
+        <MockDataPanel
           key={panel.id}
           id={panel.id}
           title={panel.title}
@@ -88,7 +88,7 @@ export function ReplayUI() {
           onHide={() => setOpen((current) => ({ ...current, [panel.id]: false }))}
         >
           {panel.content}
-        </ReplayPanel>
+        </MockDataPanel>
       ))}
     </>
   );

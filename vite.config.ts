@@ -19,11 +19,11 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
     base: env.BASE_DIR || '/',
     build: {
       rollupOptions: {
-        // Two pages: the mirror itself, and a replay of recorded weather for testing (replay.html).
+        // Two pages: the mirror itself, and a page with mock data for testing (mockdata.html).
         // The recorded data is only reachable from the second one, so the mirror never loads it.
         input: {
           main: resolve(process.cwd(), 'index.html'),
-          replay: resolve(process.cwd(), 'replay.html'),
+          mockdata: resolve(process.cwd(), 'mockdata.html'),
         },
       },
     },

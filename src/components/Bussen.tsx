@@ -121,7 +121,7 @@ export function Bussen() {
     refetchInterval: FETCH_INTERVAL, // 2 minuten
     refetchIntervalInBackground: true,
     staleTime: FETCH_INTERVAL, // 2 minuten
-    // A replay switches to a new key for every moment: keep showing the previous one meanwhile
+    // The mock data page switches to a new key for every moment: keep showing the previous one meanwhile
     placeholderData: keepPreviousData,
     select: (data) => mapBusPass(data, now()),
   });

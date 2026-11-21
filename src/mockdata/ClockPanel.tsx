@@ -1,11 +1,11 @@
 import { ChangeEvent } from 'react';
 
-import { useReplay } from './replay-context';
+import { useMockData } from './mockdata-context';
 import { addDays, Button, HOUR, pad, Section } from './ui';
 
 /** The clock the whole screen runs on: step, set the time of day, or let it run */
 export function ClockPanel() {
-  const { at, setAt, playing, setPlaying } = useReplay();
+  const { at, setAt, playing, setPlaying } = useMockData();
   const date = new Date(at);
   const minutes = date.getHours() * 60 + date.getMinutes();
 

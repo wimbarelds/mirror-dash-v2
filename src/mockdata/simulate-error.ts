@@ -1,5 +1,5 @@
 import { OVCorsError } from '../util/ov/ov-cors-error';
-import { DataPart, SimulatedError } from './replay-context';
+import { DataPart, SimulatedError } from './mockdata-context';
 
 /**
  * A request that fails the way the real one can. Buses report a CORS block the way the app expects

@@ -3,7 +3,7 @@ import { useEffect, useReducer } from 'react';
 import { useDataSources } from '../data-sources';
 
 /**
- * The current time, refreshed at the start of every minute. In a replay it follows the simulated
+ * The current time, refreshed at the start of every minute. On the mock data page it follows the simulated
  * time instead, and re-renders when that changes.
  */
 export function useNow() {

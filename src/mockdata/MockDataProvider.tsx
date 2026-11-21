@@ -4,7 +4,7 @@ import { DataSources, DataSourcesProvider } from '../data-sources';
 import { buildBusData } from './build-bus-data';
 import { buildWeatherData } from './build-weather-data';
 import { clampAt, DAYS, timeAt } from './history';
-import { DataPart, ReplayContext, SimulatedError } from './replay-context';
+import { DataPart, MockDataContext, SimulatedError } from './mockdata-context';
 import { simulateError } from './simulate-error';
 
 const HOUR = 60 * 60 * 1000;
@@ -33,10 +33,10 @@ function readInitialAt() {
 }
 
 /**
- * Runs the app against recorded weather and a simulated clock. The moment being replayed lives in
+ * Runs the app against recorded weather and a simulated clock. The moment being shown lives in
  * the URL (?t=2026-06-26T14:30), so any situation can be bookmarked or shared.
  */
-export function ReplayProvider({ children }: { children: ReactNode }) {
+export function MockDataProvider({ children }: { children: ReactNode }) {
   const [at, setAtUnclamped] = useState(readInitialAt);
   const [playing, setPlaying] = useState(false);
   const [errors, setErrors] = useState<Record<DataPart, SimulatedError>>({
@@ -67,7 +67,7 @@ export function ReplayProvider({ children }: { children: ReactNode }) {
 
   const dataSources = useMemo<DataSources>(
     () => ({
-      key: `replay-${at}-${errors.weather}-${errors.buses}`,
+      key: `mockdata-${at}-${errors.weather}-${errors.buses}`,
       live: false,
       now: () => at,
       fetchWeather: () =>
@@ -82,14 +82,14 @@ export function ReplayProvider({ children }: { children: ReactNode }) {
     [at, errors],
   );
 
-  const replay = useMemo(
+  const mockData = useMemo(
     () => ({ at, setAt, playing, setPlaying, errors, setError }),
     [at, setAt, playing, errors, setError],
   );
 
   return (
-    <ReplayContext.Provider value={replay}>
+    <MockDataContext.Provider value={mockData}>
       <DataSourcesProvider value={dataSources}>{children}</DataSourcesProvider>
-    </ReplayContext.Provider>
+    </MockDataContext.Provider>
   );
 }

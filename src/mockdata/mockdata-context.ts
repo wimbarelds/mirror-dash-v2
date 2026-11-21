@@ -6,7 +6,7 @@ export type SimulatedError = 'none' | 'cors' | '404' | '500';
 /** The parts of the screen that get their data from somewhere else */
 export type DataPart = 'weather' | 'buses';
 
-export interface ReplayState {
+export interface MockDataState {
   /** The simulated current time in ms */
   at: number;
   setAt: (at: number) => void;
@@ -16,10 +16,10 @@ export interface ReplayState {
   setError: (part: DataPart, error: SimulatedError) => void;
 }
 
-export const ReplayContext = createContext<ReplayState | null>(null);
+export const MockDataContext = createContext<MockDataState | null>(null);
 
-export function useReplay() {
-  const state = useContext(ReplayContext);
-  if (!state) throw new Error('useReplay must be used inside a ReplayProvider');
+export function useMockData() {
+  const state = useContext(MockDataContext);
+  if (!state) throw new Error('useMockData must be used inside a MockDataProvider');
   return state;
 }

@@ -1,7 +1,7 @@
 import raw from './weather-history.json';
 
 /**
- * Recorded hourly weather, created by scripts/fetch-replay-weather.mjs. Times are local, 24 values
+ * Recorded hourly weather, created by scripts/fetch-mockdata-weather.mjs. Times are local, 24 values
  * per day, starting at midnight of `start`.
  *
  * The values are read as local time in whichever timezone the browser is in, so a replayed 08:30

@@ -76,7 +76,10 @@ export function buildBusData(at: number): TimingPoint {
           minute,
         );
         if (departure.getTime() <= at || Object.keys(passes).length >= 4) continue;
-        passes[`replay_${localIso(departure)}`] = buildPass(departure, Object.keys(passes).length);
+        passes[`mockdata_${localIso(departure)}`] = buildPass(
+          departure,
+          Object.keys(passes).length,
+        );
       }
     }
   }

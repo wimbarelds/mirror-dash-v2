@@ -1,6 +1,6 @@
 import { PointerEvent, ReactNode, useEffect, useRef, useState } from 'react';
 
-const STORAGE_KEY = 'mirror-dash-replay-panels';
+const STORAGE_KEY = 'mirror-dash-mockdata-panels';
 
 interface Position {
   x: number;
@@ -45,7 +45,7 @@ interface Props {
  * A panel with a title bar to drag it by, and a button to hide it. Shown and hidden from the
  * toolbar too. Where it was put is remembered.
  */
-export function ReplayPanel({ id, title, start, width, onHide, children }: Props) {
+export function MockDataPanel({ id, title, start, width, onHide, children }: Props) {
   const [position, setPosition] = useState<Position>(
     () =>
       readPositions()[id] ?? { x: start.x * window.innerWidth, y: start.y * window.innerHeight },

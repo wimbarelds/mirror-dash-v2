@@ -1,7 +1,7 @@
 /**
- * Downloads a block of hourly weather history for the replay page (replay.html).
+ * Downloads a block of hourly weather history for the mock data page (mockdata.html).
  *
- *   node scripts/fetch-replay-weather.mjs 2024-12-31 2026-01-01
+ *   node scripts/fetch-mockdata-weather.mjs 2024-12-31 2026-01-01
  *
  * Uses Open-Meteo's historical forecast API, which keeps the archived model forecasts. Unlike the
  * plain archive API it includes precipitation probability, which the graph needs. Times are local
@@ -11,7 +11,9 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 
 const [, , start, end] = process.argv;
 if (!/^\d{4}-\d{2}-\d{2}$/.test(start ?? '') || !/^\d{4}-\d{2}-\d{2}$/.test(end ?? '')) {
-  console.error('Usage: node scripts/fetch-replay-weather.mjs <start YYYY-MM-DD> <end YYYY-MM-DD>');
+  console.error(
+    'Usage: node scripts/fetch-mockdata-weather.mjs <start YYYY-MM-DD> <end YYYY-MM-DD>',
+  );
   process.exit(1);
 }
 
@@ -63,6 +65,6 @@ for (const name of VARIABLES) {
   }
 }
 
-mkdirSync('src/replay', { recursive: true });
-writeFileSync('src/replay/weather-history.json', JSON.stringify({ start, hours, ...columns }));
-console.log(`Wrote src/replay/weather-history.json (${hours} hours from ${start})`);
+mkdirSync('src/mockdata', { recursive: true });
+writeFileSync('src/mockdata/weather-history.json', JSON.stringify({ start, hours, ...columns }));
+console.log(`Wrote src/mockdata/weather-history.json (${hours} hours from ${start})`);

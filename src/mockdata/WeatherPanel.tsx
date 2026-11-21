@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { DateTimePicker } from './DateTimePicker';
 import { ErrorPicker } from './ErrorPicker';
 import { getHighlights, Season, SEASONS } from './highlights';
-import { useReplay } from './replay-context';
+import { useMockData } from './mockdata-context';
 import { Button, ButtonGroup, MONTHS, Section } from './ui';
 
 const seasonOfMonth = (month: number): Season =>
@@ -13,7 +13,7 @@ const sameDay = (a: number, b: number) => new Date(a).toDateString() === new Dat
 
 /** Pick the weather: a notable day in a season, or an exact date and time */
 export function WeatherPanel() {
-  const { at, setAt, setPlaying } = useReplay();
+  const { at, setAt, setPlaying } = useMockData();
   const [exact, setExact] = useState(false);
   const [season, setSeason] = useState(() => seasonOfMonth(new Date(at).getMonth()));
   const highlights = useMemo(getHighlights, []);

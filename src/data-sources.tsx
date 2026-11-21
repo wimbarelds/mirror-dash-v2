@@ -6,13 +6,13 @@ import { fetchWeatherData, WeatherData } from './util/weather/fetch-weather';
 
 /**
  * Everything the app gets from the outside world: the clock and both data sources. The real ones are
- * the default. The replay page (replay.html) provides its own, driven by recorded weather and a
+ * the default. The mock data page (mockdata.html) provides its own, driven by recorded weather and a
  * simulated clock, without the main page ever loading any of that code or data.
  */
 export interface DataSources {
-  /** Live data keeps one key; a replay changes it whenever the data would change */
+  /** Live data keeps one key; the mock data page changes it whenever the data would change */
   key: string;
-  /** Whether time moves by itself. A replay moves it by hand and re-renders the app when it does */
+  /** Whether time moves by itself. The mock data page moves it by hand and re-renders the app when it does */
   live: boolean;
   /** The current time in ms */
   now: () => number;

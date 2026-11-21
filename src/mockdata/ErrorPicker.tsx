@@ -1,4 +1,4 @@
-import { DataPart, SimulatedError, useReplay } from './replay-context';
+import { DataPart, SimulatedError, useMockData } from './mockdata-context';
 import { ButtonGroup, Section } from './ui';
 
 const OPTIONS: { value: SimulatedError; label: string }[] = [
@@ -10,7 +10,7 @@ const OPTIONS: { value: SimulatedError; label: string }[] = [
 
 /** Makes the requests for this part of the screen fail, to see how it copes */
 export function ErrorPicker({ part }: { part: DataPart }) {
-  const { errors, setError } = useReplay();
+  const { errors, setError } = useMockData();
 
   return (
     <Section title="Fout simuleren">
