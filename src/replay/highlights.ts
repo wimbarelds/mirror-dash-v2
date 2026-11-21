@@ -197,10 +197,15 @@ export function getHighlights(): Record<Season, Highlight[]> {
 
   const result = {} as Record<Season, Highlight[]>;
   for (const { id } of SEASONS) {
-    const days = bySeason[id];
+    // Every button gets a day of its own, so choosing one never lights up another
+    const used = new Set<number>();
     result[id] = CATEGORIES.flatMap((category) => {
-      const best = pick(days, category.score);
-      if (!category.qualifies(best)) return [];
+      const candidates = bySeason[id].filter(
+        (day) => !used.has(day.day) && category.qualifies(day),
+      );
+      if (candidates.length === 0) return [];
+      const best = pick(candidates, category.score);
+      used.add(best.day);
       return [{ label: category.label, at: before(best.day, category.hour(best)) }];
     });
   }
