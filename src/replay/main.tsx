@@ -4,6 +4,7 @@ import ReactDOM from 'react-dom/client';
 
 import App from '../App.tsx';
 import { AppErrorBoundary } from '../components/AppErrorBoundary.tsx';
+import { AmountSwitch } from './AmountSwitch.tsx';
 import { ReplayControls } from './ReplayControls.tsx';
 import { ReplayProvider } from './ReplayProvider.tsx';
 
@@ -15,7 +16,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <AppErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <ReplayProvider>
-          <App />
+          <AmountSwitch>
+            <App />
+          </AmountSwitch>
           <ReplayControls />
         </ReplayProvider>
       </QueryClientProvider>
